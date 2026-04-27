@@ -20,7 +20,7 @@ export interface Alert {
   impact: ImpactLevel;
   potentialSavings: number;
   action: string;
-  category: 'cost' | 'performance' | 'ecosystem' | 'security';
+  category: 'FinOps' | 'DevOps' | 'Security';
   timestamp: number;
 }
 
@@ -38,3 +38,5 @@ export interface ScanResult {
   totalPotentialSavings: number;
   runwayImpactMonths: number;
 }
+
+export type DashboardTab = 'overview' | 'stack' | 'runway' | 'architecture' | 'insights' | 'digest';

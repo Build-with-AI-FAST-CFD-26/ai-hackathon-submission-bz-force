@@ -9,7 +9,7 @@ import {
   Database,
   BarChart3
 } from 'lucide-react';
-import { UserContext } from '../types';
+import { DashboardTab, UserContext } from '../types';
 import { cn } from '../lib/utils';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
@@ -17,9 +17,12 @@ interface SidebarProps {
   context: UserContext;
   healthScore: number;
   onReset: () => void;
+  activeTab: DashboardTab;
+  onTabChange: (tab: DashboardTab) => void;
+  hasPendingRescan: boolean;
 }
 
-export default function Sidebar({ context, healthScore, onReset }: SidebarProps) {
+export default function Sidebar({ context, healthScore, onReset, activeTab, onTabChange, hasPendingRescan }: SidebarProps) {
   const data = [
     { name: 'Health', value: healthScore },
     { name: 'Remaining', value: 100 - healthScore },
@@ -74,16 +77,26 @@ export default function Sidebar({ context, healthScore, onReset }: SidebarProps)
               <span>LATENCY_VAR</span>
               <span className="text-emerald-400">12MS</span>
             </div>
+            <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
+              <span>STACK_STATE</span>
+              <span className={cn(
+                'px-2 py-0.5 rounded-full border',
+                hasPendingRescan ? 'text-brand-amber border-brand-amber/40 bg-brand-amber/10 animate-pulse' : 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10'
+              )}>
+                {hasPendingRescan ? 'DIRTY / RESCAN' : 'SYNCED'}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="space-y-1">
-          <NavItem icon={<Activity className="w-4 h-4" />} label="Overview" active />
-          <NavItem icon={<Layers className="w-4 h-4" />} label="Infrastructure" />
-          <NavItem icon={<MessageSquare className="w-4 h-4" />} label="Insights" />
-          <NavItem icon={<Database className="w-4 h-4" />} label="Data Pools" />
-          <NavItem icon={<BarChart3 className="w-4 h-4" />} label="Cost Analysis" />
+          <NavItem icon={<Activity className="w-4 h-4" />} label="Overview" active={activeTab === 'overview'} onClick={() => onTabChange('overview')} />
+          <NavItem icon={<Layers className="w-4 h-4" />} label="Stack Manager" active={activeTab === 'stack'} onClick={() => onTabChange('stack')} />
+          <NavItem icon={<BarChart3 className="w-4 h-4" />} label="Runway Projections" active={activeTab === 'runway'} onClick={() => onTabChange('runway')} />
+          <NavItem icon={<Database className="w-4 h-4" />} label="Architecture" active={activeTab === 'architecture'} onClick={() => onTabChange('architecture')} />
+          <NavItem icon={<MessageSquare className="w-4 h-4" />} label="Insights" active={activeTab === 'insights'} onClick={() => onTabChange('insights')} />
+          <NavItem icon={<MessageSquare className="w-4 h-4" />} label="Weekly Digest" active={activeTab === 'digest'} onClick={() => onTabChange('digest')} />
         </nav>
       </div>
 
@@ -107,9 +120,9 @@ export default function Sidebar({ context, healthScore, onReset }: SidebarProps)
   );
 }
 
-function NavItem({ icon, label, active = false }: { icon: React.ReactNode, label: string, active?: boolean }) {
+function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick: () => void }) {
   return (
-    <button className={cn(
+    <button onClick={onClick} className={cn(
       "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all group",
       active ? "bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 px-5" : "text-gray-400 hover:bg-brand-bg hover:text-white"
     )}>

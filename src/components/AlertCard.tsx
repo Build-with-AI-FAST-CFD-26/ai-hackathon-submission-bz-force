@@ -40,6 +40,12 @@ export default function AlertCard({ alert, index, stack, onImplement, onDismiss,
     [ImpactLevel.CRITICAL]: 'text-brand-red bg-brand-red/10 border-brand-red/20 border-2 animate-pulse',
   };
 
+  const categoryMeta = {
+    FinOps: { label: '💰 FinOps', className: 'text-brand-amber border-brand-amber/30 bg-brand-amber/10' },
+    DevOps: { label: '⚙️ DevOps', className: 'text-brand-cyan border-brand-cyan/30 bg-brand-cyan/10' },
+    Security: { label: '🛡️ Security', className: 'text-brand-red border-brand-red/30 bg-brand-red/10' },
+  } as const;
+
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim() || isLoading) return;
@@ -101,8 +107,13 @@ export default function AlertCard({ alert, index, stack, onImplement, onDismiss,
     >
       <div className="p-6 flex-1">
         <div className="flex items-start justify-between mb-4">
-          <div className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border", impactColors[alert.impact])}>
-            {alert.impact} Impact
+          <div className="flex flex-col gap-2">
+            <div className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border", impactColors[alert.impact])}>
+              {alert.impact} Impact
+            </div>
+            <div className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border inline-flex w-fit", categoryMeta[alert.category].className)}>
+              {categoryMeta[alert.category].label}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {alert.status === 'resolved' && (

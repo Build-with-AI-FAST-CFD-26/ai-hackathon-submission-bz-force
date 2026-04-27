@@ -4,6 +4,12 @@ export type ScanAlert = {
   impactLevel: "High" | "Medium" | "Low";
   estimatedSavings: number;
   actionDescription: string;
+  category: "FinOps" | "DevOps" | "Security";
+};
+
+export type ScanResponse = {
+  alerts: ScanAlert[];
+  mermaidGraph: string;
 };
 
 type AskGeminiChunk = (chunk: string) => void;
@@ -12,7 +18,7 @@ type AskGeminiError = (error: unknown) => void;
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
 
-export async function scanStack(stack: string[], monthlySpend: number): Promise<ScanAlert[]> {
+export async function scanStack(stack: string[], monthlySpend: number): Promise<ScanResponse> {
   const response = await fetch(`${API_BASE_URL}/api/scan`, {
     method: "POST",
     headers: {
@@ -27,7 +33,50 @@ export async function scanStack(stack: string[], monthlySpend: number): Promise<
   }
 
   const data = await response.json();
-  return Array.isArray(data?.alerts) ? data.alerts : [];
+  return {
+    alerts: Array.isArray(data?.alerts) ? data.alerts : [],
+    mermaidGraph: typeof data?.mermaidGraph === 'string' ? data.mermaidGraph : '',
+  };
+}
+
+export async function generateInsights(
+  alerts: unknown[],
+  monthlyCost: number,
+  implementedSavings: number
+): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/insights`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ alerts, monthlyCost, implementedSavings }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Insights request failed (${response.status}): ${errorBody}`);
+  }
+
+  const data = await response.json();
+  return typeof data?.markdown === 'string' ? data.markdown : '';
+}
+
+export async function generateDigest(alerts: unknown[]): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/digest`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ alerts }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Digest request failed (${response.status}): ${errorBody}`);
+  }
+
+  const data = await response.json();
+  return typeof data?.markdown === 'string' ? data.markdown : '';
 }
 
 export async function askGemini(
