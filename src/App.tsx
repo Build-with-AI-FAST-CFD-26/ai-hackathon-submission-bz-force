@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Alert, DashboardTab, ImpactLevel, StackItem, UserContext } from './types';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
-import { askGemini, generateDigest, generateInsights, scanStack } from './services/api';
+import { askGemini, generateDigest, generateDiligence, generateInsights, scanStack } from './services/api';
 
 const STORAGE_KEY = 'stacksense_user_context';
 
@@ -104,6 +104,20 @@ export default function App() {
     }
 
     updateStackContext(context.stack.filter((item) => item.id !== itemId));
+  };
+
+  const handleLoadDemoStack = () => {
+    if (!context) {
+      return;
+    }
+
+    updateStackContext([
+      { id: 'demo-vercel', name: 'Vercel (Pro)', category: 'SaaS', monthlyCost: 150 },
+      { id: 'demo-firebase', name: 'Firebase', category: 'SaaS', monthlyCost: 200 },
+      { id: 'demo-openai', name: 'OpenAI API', category: 'SaaS', monthlyCost: 500 },
+      { id: 'demo-pinecone', name: 'Pinecone Vector DB', category: 'SaaS', monthlyCost: 250 },
+      { id: 'demo-mailchimp', name: 'Mailchimp', category: 'SaaS', monthlyCost: 100 },
+    ]);
   };
 
   const addTerminalMessage = (message: string) => {
@@ -220,6 +234,14 @@ export default function App() {
     return generateDigest(alerts);
   };
 
+  const handleGenerateDiligence = async () => {
+    if (!context) {
+      return '';
+    }
+
+    return generateDiligence(alerts, context.stack);
+  };
+
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-brand-bg flex items-center justify-center">
@@ -271,11 +293,13 @@ export default function App() {
               onAddStackItem={handleAddStackItem}
               onUpdateStackItem={handleUpdateStackItem}
               onRemoveStackItem={handleRemoveStackItem}
+              onLoadDemoStack={handleLoadDemoStack}
               onImplementAlert={handleImplementAlert}
               onDismissAlert={handleDismissAlert}
               onAskGemini={handleAskGemini}
               onGenerateInsights={handleGenerateInsights}
               onGenerateDigest={handleGenerateDigest}
+              onGenerateDiligence={handleGenerateDiligence}
             />
           </motion.div>
         )}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Zap, 
@@ -16,11 +16,12 @@ import Sidebar from './Sidebar';
 import TerminalView from './TerminalView';
 import AlertCard from './AlertCard';
 import { cn } from '../lib/utils';
-import StackManager from './StackManager';
-import RunwayProjections from './RunwayProjections';
-import ArchitectureView from './ArchitectureView';
-import InsightsTab from './InsightsTab';
-import WeeklyDigest from './WeeklyDigest';
+
+const StackManager = lazy(() => import('./StackManager'));
+const RunwayProjections = lazy(() => import('./RunwayProjections'));
+const ArchitectureView = lazy(() => import('./ArchitectureView'));
+const InsightsTab = lazy(() => import('./InsightsTab'));
+const WeeklyDigest = lazy(() => import('./WeeklyDigest'));
 
 interface DashboardProps {
   context: UserContext;
@@ -39,6 +40,7 @@ interface DashboardProps {
   onAddStackItem: (name: string, monthlyCost: number) => void;
   onUpdateStackItem: (itemId: string, updates: Partial<StackItem>) => void;
   onRemoveStackItem: (itemId: string) => void;
+  onLoadDemoStack: () => void;
   onImplementAlert: (alertId: string) => void;
   onDismissAlert: (alertId: string) => void;
   onAskGemini: (
@@ -50,6 +52,7 @@ interface DashboardProps {
   ) => Promise<void>;
   onGenerateInsights: () => Promise<string>;
   onGenerateDigest: () => Promise<string>;
+  onGenerateDiligence: () => Promise<string>;
 }
 
 export default function Dashboard({
@@ -69,11 +72,13 @@ export default function Dashboard({
   onAddStackItem,
   onUpdateStackItem,
   onRemoveStackItem,
+  onLoadDemoStack,
   onImplementAlert,
   onDismissAlert,
   onAskGemini,
   onGenerateInsights,
   onGenerateDigest,
+  onGenerateDiligence,
 }: DashboardProps) {
   const visibleAlerts = alerts.filter((item) => item.status !== 'dismissed');
   const currentMonthlySpend = context.stack.reduce((sum, item) => sum + (Number(item.monthlyCost) || 0), 0);
@@ -179,7 +184,7 @@ export default function Dashboard({
                           <span>12%</span>
                         </div>
                         <div className="h-1.5 w-full bg-brand-bg rounded-full overflow-hidden">
-                          <motion.div 
+                          <motion.div
                             className="h-full bg-brand-cyan shadow-[0_0_10px_rgba(0,245,255,0.5)]"
                             initial={{ width: 0 }}
                             animate={{ width: '12%' }}
@@ -201,7 +206,7 @@ export default function Dashboard({
                         <div className="text-xs text-gray-400 mt-1 uppercase font-mono tracking-tighter">PROJECTED_EXTENSION</div>
                       </div>
                       <div className="text-xs text-brand-amber/80 font-mono leading-relaxed">
-                        // OPTIMIZING_CURRENT_BURN_RATE<br/>
+                        // OPTIMIZING_CURRENT_BURN_RATE<br />
                         // INJECTING_${implementedSavings}_TO_RESERVES
                       </div>
                     </div>
@@ -214,7 +219,7 @@ export default function Dashboard({
                       <AlertTriangle className="w-5 h-5 text-brand-amber" /> Impact Ranked Alerts
                     </h2>
                     <div className="flex gap-2">
-                      {['COST', 'ECOSYSTEM', 'PERF'].map(filter => (
+                      {['COST', 'ECOSYSTEM', 'PERF'].map((filter) => (
                         <button key={filter} className="text-[10px] font-mono border border-brand-border px-3 py-1 rounded-full text-gray-500 hover:text-brand-cyan hover:border-brand-cyan transition-colors">
                           {filter}
                         </button>
@@ -260,12 +265,15 @@ export default function Dashboard({
                 exit={{ opacity: 0, y: -18 }}
                 transition={{ duration: 0.25 }}
               >
-                <StackManager
-                  stack={context.stack}
-                  onAddTool={onAddStackItem}
-                  onUpdateTool={onUpdateStackItem}
-                  onRemoveTool={onRemoveStackItem}
-                />
+                <Suspense fallback={panelFallback('stack-manager')}>
+                  <StackManager
+                    stack={context.stack}
+                    onAddTool={onAddStackItem}
+                    onUpdateTool={onUpdateStackItem}
+                    onRemoveTool={onRemoveStackItem}
+                    onLoadDemoStack={onLoadDemoStack}
+                  />
+                </Suspense>
               </motion.div>
             )}
 
@@ -277,10 +285,12 @@ export default function Dashboard({
                 exit={{ opacity: 0, y: -18 }}
                 transition={{ duration: 0.25 }}
               >
-                <RunwayProjections
-                  currentMonthlySpend={currentMonthlySpend}
-                  implementedSavings={implementedSavings}
-                />
+                <Suspense fallback={panelFallback('runway-projections')}>
+                  <RunwayProjections
+                    currentMonthlySpend={currentMonthlySpend}
+                    implementedSavings={implementedSavings}
+                  />
+                </Suspense>
               </motion.div>
             )}
 
@@ -292,7 +302,9 @@ export default function Dashboard({
                 exit={{ opacity: 0, y: -18 }}
                 transition={{ duration: 0.25 }}
               >
-                <ArchitectureView mermaidGraph={mermaidGraph} />
+                <Suspense fallback={panelFallback('architecture-view')}>
+                  <ArchitectureView mermaidGraph={mermaidGraph} />
+                </Suspense>
               </motion.div>
             )}
 
@@ -304,12 +316,16 @@ export default function Dashboard({
                 exit={{ opacity: 0, y: -18 }}
                 transition={{ duration: 0.25 }}
               >
-                <InsightsTab
-                  alerts={visibleAlerts}
-                  monthlyCost={currentMonthlySpend}
-                  implementedSavings={implementedSavings}
-                  onGenerateInsights={onGenerateInsights}
-                />
+                <Suspense fallback={panelFallback('insights')}>
+                  <InsightsTab
+                    alerts={visibleAlerts}
+                    stack={context.stack}
+                    monthlyCost={currentMonthlySpend}
+                    implementedSavings={implementedSavings}
+                    onGenerateInsights={onGenerateInsights}
+                    onGenerateDiligence={onGenerateDiligence}
+                  />
+                </Suspense>
               </motion.div>
             )}
 
@@ -321,12 +337,22 @@ export default function Dashboard({
                 exit={{ opacity: 0, y: -18 }}
                 transition={{ duration: 0.25 }}
               >
-                <WeeklyDigest alerts={visibleAlerts} onGenerateDigest={onGenerateDigest} />
+                <Suspense fallback={panelFallback('weekly-digest')}>
+                  <WeeklyDigest alerts={visibleAlerts} onGenerateDigest={onGenerateDigest} />
+                </Suspense>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
+    </div>
+  );
+}
+
+function panelFallback(label: string) {
+  return (
+    <div className="bg-brand-card border border-brand-border rounded-2xl p-8 text-gray-500 font-mono text-sm">
+      LOADING_{label.toUpperCase()}...
     </div>
   );
 }

@@ -69,9 +69,9 @@ export default function WeeklyDigest({ alerts, onGenerateDigest }: WeeklyDigestP
         {error ? (
           <div className="text-brand-red text-sm font-mono">{error}</div>
         ) : digest ? (
-          <article className="prose prose-invert prose-headings:text-white prose-p:text-gray-300 prose-strong:text-white max-w-none">
+          <div className="prose prose-invert prose-cyan max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{digest}</ReactMarkdown>
-          </article>
+          </div>
         ) : (
           <div className="h-full min-h-[360px] flex flex-col items-center justify-center text-center text-gray-500">
             <div className="w-14 h-14 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center mb-4">

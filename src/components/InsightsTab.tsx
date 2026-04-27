@@ -1,25 +1,30 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, FileText } from 'lucide-react';
+import { Sparkles, FileText, ShieldCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Alert } from '../types';
+import { Alert, StackItem } from '../types';
 
 interface InsightsTabProps {
   alerts: Alert[];
+  stack: StackItem[];
   monthlyCost: number;
   implementedSavings: number;
   onGenerateInsights: () => Promise<string>;
+  onGenerateDiligence: () => Promise<string>;
 }
 
-export default function InsightsTab({ alerts, monthlyCost, implementedSavings, onGenerateInsights }: InsightsTabProps) {
+export default function InsightsTab({ alerts, stack, monthlyCost, implementedSavings, onGenerateInsights, onGenerateDiligence }: InsightsTabProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingDiligence, setIsGeneratingDiligence] = useState(false);
   const [report, setReport] = useState('');
+  const [reportMode, setReportMode] = useState<'summary' | 'diligence'>('summary');
   const [error, setError] = useState('');
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError('');
+    setReportMode('summary');
     try {
       const markdown = await onGenerateInsights();
       setReport(markdown);
@@ -27,6 +32,20 @@ export default function InsightsTab({ alerts, monthlyCost, implementedSavings, o
       setError(err instanceof Error ? err.message : 'Failed to generate executive summary.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateDiligence = async () => {
+    setIsGeneratingDiligence(true);
+    setError('');
+    setReportMode('diligence');
+    try {
+      const markdown = await onGenerateDiligence();
+      setReport(markdown);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate diligence report.');
+    } finally {
+      setIsGeneratingDiligence(false);
     }
   };
 
@@ -47,14 +66,24 @@ export default function InsightsTab({ alerts, monthlyCost, implementedSavings, o
             A non-technical, board-ready overview of runway impact, diligence risks, and engineering velocity.
           </p>
         </div>
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-cyan px-5 py-3 font-bold text-brand-bg hover:scale-[1.02] transition-transform disabled:opacity-50"
-        >
-          <Sparkles className="w-4 h-4" />
-          {isGenerating ? 'GENERATING...' : 'Generate Executive Report'}
-        </button>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-cyan px-5 py-3 font-bold text-brand-bg hover:scale-[1.02] transition-transform disabled:opacity-50"
+          >
+            <Sparkles className="w-4 h-4" />
+            {isGenerating ? 'GENERATING...' : 'Generate Executive Report'}
+          </button>
+          <button
+            onClick={handleGenerateDiligence}
+            disabled={isGeneratingDiligence}
+            className="inline-flex items-center gap-2 rounded-xl border border-brand-amber/40 bg-brand-amber/10 px-5 py-3 font-bold text-brand-amber hover:scale-[1.02] transition-transform disabled:opacity-50"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            {isGeneratingDiligence ? 'GENERATING...' : 'Generate Tech Due Diligence (YC/Investors)'}
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -71,9 +100,9 @@ export default function InsightsTab({ alerts, monthlyCost, implementedSavings, o
         {error ? (
           <div className="text-brand-red text-sm font-mono">{error}</div>
         ) : report ? (
-          <article className="prose prose-invert prose-headings:text-white prose-p:text-gray-300 prose-strong:text-white max-w-none">
+          <div className="prose prose-invert prose-cyan max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
-          </article>
+          </div>
         ) : (
           <div className="h-full min-h-[360px] flex flex-col items-center justify-center text-center text-gray-500">
             <div className="w-14 h-14 rounded-full bg-brand-bg border border-brand-border flex items-center justify-center mb-4">
@@ -85,6 +114,10 @@ export default function InsightsTab({ alerts, monthlyCost, implementedSavings, o
           </div>
         )}
       </motion.div>
+
+      <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">
+        Current stack: {stack.length} tools • View: {reportMode === 'summary' ? 'Executive Summary' : 'Tech Due Diligence'}
+      </div>
     </div>
   );
 }

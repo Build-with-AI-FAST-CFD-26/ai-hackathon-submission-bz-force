@@ -8,11 +8,24 @@ interface StackManagerProps {
   onAddTool: (name: string, monthlyCost: number) => void;
   onUpdateTool: (itemId: string, updates: Partial<StackItem>) => void;
   onRemoveTool: (itemId: string) => void;
+  onLoadDemoStack: () => void;
 }
 
-export default function StackManager({ stack, onAddTool, onUpdateTool, onRemoveTool }: StackManagerProps) {
+export default function StackManager({ stack, onAddTool, onUpdateTool, onRemoveTool, onLoadDemoStack }: StackManagerProps) {
   const [toolName, setToolName] = useState('');
   const [monthlyCost, setMonthlyCost] = useState('0');
+
+  const getRadarWarning = (toolNameValue: string) => {
+    if (toolNameValue === 'Pinecone Vector DB') {
+      return '⚠️ Deprecation Radar: pgvector now supports HNSW scaling. Migration could save $250/mo.';
+    }
+
+    if (toolNameValue === 'OpenAI API') {
+      return '⚠️ Pricing Radar: Gemini 3.1 Flash released with 50% lower inference costs.';
+    }
+
+    return '';
+  };
 
   const handleAdd = (event: FormEvent) => {
     event.preventDefault();
@@ -64,6 +77,16 @@ export default function StackManager({ stack, onAddTool, onUpdateTool, onRemoveT
             <Plus className="w-4 h-4" /> Add
           </button>
         </form>
+
+        <div className="mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={onLoadDemoStack}
+            className="text-xs font-mono uppercase tracking-wider text-gray-400 hover:text-brand-cyan transition-colors inline-flex items-center gap-2"
+          >
+            <Wrench className="w-3.5 h-3.5" /> Load Demo Stack
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -78,6 +101,7 @@ export default function StackManager({ stack, onAddTool, onUpdateTool, onRemoveT
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500">Stack Tool</span>
               <button
+                type="button"
                 onClick={() => onRemoveTool(item.id)}
                 className="text-gray-500 hover:text-brand-red transition-colors p-1"
                 aria-label={`Remove ${item.name}`}
@@ -105,6 +129,11 @@ export default function StackManager({ stack, onAddTool, onUpdateTool, onRemoveT
                 className="bg-brand-bg border border-brand-border rounded-lg px-3 py-2 text-sm outline-none focus:border-brand-cyan"
               />
             </div>
+            {getRadarWarning(item.name) && (
+              <div className="rounded-lg border border-brand-amber/30 bg-brand-amber/10 px-3 py-2 text-xs leading-relaxed text-brand-amber font-mono">
+                {getRadarWarning(item.name)}
+              </div>
+            )}
           </motion.div>
         ))}
       </div>

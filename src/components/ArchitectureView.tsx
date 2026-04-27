@@ -8,7 +8,7 @@ interface ArchitectureViewProps {
 }
 
 mermaid.initialize({
-  startOnLoad: false,
+  startOnLoad: true,
   theme: 'dark',
   securityLevel: 'loose',
   themeVariables: {

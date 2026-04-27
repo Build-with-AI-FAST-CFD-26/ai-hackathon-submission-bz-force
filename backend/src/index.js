@@ -31,9 +31,6 @@ if (GEMINI_API_KEY) {
 
 function getGeminiOrRespond(res) {
   if (!genAI) {
-    res.status(500).json({
-      error: "Gemini client is not configured. Missing GEMINI_API_KEY.",
-    });
     return null;
   }
   return genAI;
@@ -51,6 +48,103 @@ function parseJsonSafely(text) {
   }
 }
 
+function buildMockScanResponse(stack, monthlySpend) {
+  const fallbackGraph =
+    "graph TD; Vercel[\"Vercel (Pro)\"] --> Firebase[\"Firebase\"]; Firebase --> OpenAI[\"OpenAI API\"]; OpenAI --> Pinecone[\"Pinecone Vector DB\"]; Pinecone --> Mailchimp[\"Mailchimp\"];";
+
+  return {
+    alerts: [
+      {
+        id: "mock-alert-1",
+        title: "Drop Vercel Pro for the presentation stack",
+        impactLevel: "High",
+        estimatedSavings: 150,
+        actionDescription:
+          "Move the landing flow and demo surfaces to Firebase Hosting or Cloud Run to remove the Vercel Pro subscription.",
+        category: "FinOps",
+      },
+      {
+        id: "mock-alert-2",
+        title: "Consolidate OpenAI traffic through Vertex AI",
+        impactLevel: "High",
+        estimatedSavings: 500,
+        actionDescription:
+          "Route model calls through Vertex AI so you can standardize billing, reduce vendor sprawl, and simplify policy management.",
+        category: "DevOps",
+      },
+      {
+        id: "mock-alert-3",
+        title: "Migrate Pinecone workloads to pgvector",
+        impactLevel: "Medium",
+        estimatedSavings: 250,
+        actionDescription:
+          "Use Postgres + pgvector for the current demo corpus to reduce infrastructure overhead and make diligence easier.",
+        category: "Security",
+      },
+    ],
+    mermaidGraph: fallbackGraph,
+    meta: {
+      stack,
+      monthlySpend,
+      offlineMode: true,
+    },
+  };
+}
+
+function buildMockInsightsMarkdown(alerts, monthlyCost, implementedSavings) {
+  return [
+    "## Weekly Executive Summary for Paul",
+    "The current stack is pointing to a clear runway win: the biggest immediate savings come from removing the Vercel Pro layer, consolidating model spend, and simplifying the vector search path. Even a partial implementation of these changes turns the burn profile from a scattered set of vendor payments into a much tighter operating plan.",
+    "The main diligence risk is unnecessary tech sprawl. Multiple external services handling core workflow logic creates avoidable questions during fundraising and due diligence, especially when there is a simpler platform path available for hosting, model access, and data retrieval. Cleaning this up reduces the number of things investors can worry about.",
+    "Engineering velocity should improve once the team stops maintaining duplicate infrastructure. A smaller surface area means fewer deployment hops, less cross-service debugging, and faster iteration on product work. In practical terms, the team will spend more time shipping and less time stitching systems together.",
+    "",
+    `*Alerts reviewed:* ${alerts.length}  `,
+    `*Monthly cost:* $${Number(monthlyCost || 0).toLocaleString()}  `,
+    `*Implemented savings:* $${Number(implementedSavings || 0).toLocaleString()}`,
+  ].join("\n\n");
+}
+
+function buildMockDigestMarkdown(alerts) {
+  return [
+    "## Weekly Digest for Paul",
+    "Runway improved this week because the stack now has a clear path to remove expensive overlap in hosting, model usage, and retrieval tooling. The practical takeaway is that the burn curve becomes more predictable once the team standardizes on fewer vendors.",
+    "We also reduced diligence risk by identifying places where third-party tooling can be simplified or eliminated. That matters because investors and YC reviewers tend to read unnecessary infrastructure as future maintenance debt.",
+    "Finally, the team should move faster after the stack is tightened. Fewer vendors means fewer moving parts, which means quicker deployments, less debugging, and more product time.",
+    "",
+    `*Alerts summarized:* ${alerts.length}`,
+  ].join("\n\n");
+}
+
+function buildMockDiligenceMarkdown(alerts, stack) {
+  const stackList = Array.isArray(stack) && stack.length > 0 ? stack.join(', ') : 'the current demo stack';
+
+  return [
+    "# Technical Due Diligence",
+    "## 1. Current Architecture Choices",
+    `Our current architecture centers on ${stackList}. For the product and the live demo, this keeps the system intentionally lean while still allowing us to move quickly on feature validation, customer conversations, and integration work. We are using a small set of managed services so we can spend our time shipping product rather than operating infrastructure.`,
+    "## 2. Cost Management & FinOps",
+    `The present alert set contains ${alerts.length} active optimization signals. The main focus is to reduce duplicated spend, keep hosting and inference costs visible, and prioritize changes that directly improve runway. The operating goal is to maintain a simple cost structure that can scale without introducing billing surprises or hidden vendor sprawl.`,
+    "## 3. Scalability & Technical Debt Mitigation",
+    "We are actively reducing technical debt by removing unnecessary platform dependencies, consolidating core workloads, and favoring managed primitives where they improve reliability. This lowers diligence risk because the architecture becomes easier to explain, easier to maintain, and easier to scale as customer demand grows.",
+  ].join("\n\n");
+}
+
+async function writeMockSseResponse(res, text) {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  const chunks = text.match(/.{1,120}/g) || [text];
+  for (const chunk of chunks) {
+    res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+  }
+
+  res.write("event: done\ndata: [DONE]\n\n");
+  res.end();
+}
+
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "stacksense-backend" });
 });
@@ -59,7 +153,8 @@ app.post("/api/scan", async (req, res) => {
   try {
     const client = getGeminiOrRespond(res);
     if (!client) {
-      return;
+      const mockResponse = buildMockScanResponse(req.body?.stack || [], Number(req.body?.monthlySpend) || 0);
+      return res.json(mockResponse);
     }
 
     const { stack, monthlySpend } = req.body || {};
@@ -161,11 +256,9 @@ app.post("/api/scan", async (req, res) => {
     const alerts = Array.isArray(parsed?.alerts) ? parsed.alerts : [];
     res.json({ alerts, mermaidGraph: typeof parsed?.mermaidGraph === 'string' ? parsed.mermaidGraph : '' });
   } catch (error) {
-    console.error("/api/scan failed:", error?.message || error);
-    res.status(500).json({
-      error: "Failed to scan stack with Gemini.",
-      detail: error?.message,
-    });
+    console.error("/api/scan failed, switching to offline demo mode:", error?.message || error);
+    const mockResponse = buildMockScanResponse(req.body?.stack || [], Number(req.body?.monthlySpend) || 0);
+    res.json(mockResponse);
   }
 });
 
@@ -173,7 +266,8 @@ app.post("/api/insights", async (req, res) => {
   try {
     const client = getGeminiOrRespond(res);
     if (!client) {
-      return;
+      const mockMarkdown = buildMockInsightsMarkdown(req.body?.alerts || [], req.body?.monthlyCost || 0, req.body?.implementedSavings || 0);
+      return res.json({ markdown: mockMarkdown });
     }
 
     const { alerts, monthlyCost, implementedSavings } = req.body || {};
@@ -218,8 +312,9 @@ app.post("/api/insights", async (req, res) => {
 
     res.json({ markdown: result.response.text() });
   } catch (error) {
-    console.error("/api/insights failed:", error?.message || error);
-    res.status(500).json({ error: "Failed to generate insights markdown.", detail: error?.message });
+    console.error("/api/insights failed, switching to offline demo mode:", error?.message || error);
+    const mockMarkdown = buildMockInsightsMarkdown(req.body?.alerts || [], req.body?.monthlyCost || 0, req.body?.implementedSavings || 0);
+    res.json({ markdown: mockMarkdown });
   }
 });
 
@@ -227,7 +322,7 @@ app.post("/api/digest", async (req, res) => {
   try {
     const client = getGeminiOrRespond(res);
     if (!client) {
-      return;
+      return res.json({ markdown: buildMockDigestMarkdown(req.body?.alerts || []) });
     }
 
     const { alerts } = req.body || {};
@@ -266,8 +361,60 @@ app.post("/api/digest", async (req, res) => {
 
     res.json({ markdown: result.response.text() });
   } catch (error) {
-    console.error("/api/digest failed:", error?.message || error);
-    res.status(500).json({ error: "Failed to generate weekly digest.", detail: error?.message });
+    console.error("/api/digest failed, switching to offline demo mode:", error?.message || error);
+    return res.json({ markdown: buildMockDigestMarkdown(req.body?.alerts || []) });
+  }
+});
+
+app.post("/api/diligence", async (req, res) => {
+  try {
+    const client = getGeminiOrRespond(res);
+    const { alerts, stack } = req.body || {};
+
+    if (!client) {
+      return res.json({ markdown: buildMockDiligenceMarkdown(alerts || [], stack || []) });
+    }
+
+    if (!Array.isArray(alerts) || !Array.isArray(stack)) {
+      return res.status(400).json({ error: "Invalid request body. 'alerts' and 'stack' must both be arrays." });
+    }
+
+    const model = client.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: {
+        temperature: 0.35,
+      },
+      systemInstruction: [
+        {
+          text:
+            "You are a fractional CTO filling out the technical section of a Y Combinator application or an investor due diligence questionnaire. " +
+            "Take the current alerts and stack array and generate a highly confident 3-section markdown document with exactly these sections: 1. Current Architecture Choices, 2. Cost Management & FinOps, and 3. Scalability & Technical Debt Mitigation. " +
+            "Write in crisp, investor-ready markdown and emphasize practical decisions, cost discipline, and risk reduction.",
+        },
+      ],
+    });
+
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                "Current alerts:\n" +
+                JSON.stringify(alerts, null, 2) +
+                "\n\nCurrent stack:\n" +
+                JSON.stringify(stack, null, 2),
+            },
+          ],
+        },
+      ],
+    });
+
+    res.json({ markdown: result.response.text() });
+  } catch (error) {
+    console.error("/api/diligence failed, switching to offline demo mode:", error?.message || error);
+    return res.json({ markdown: buildMockDiligenceMarkdown(req.body?.alerts || [], req.body?.stack || []) });
   }
 });
 
@@ -345,22 +492,16 @@ app.post("/api/ask", async (req, res) => {
     }
 
     if (!closed) {
-      res.write("event: done\\ndata: [DONE]\\n\\n");
+      res.write("event: done\ndata: [DONE]\n\n");
       res.end();
     }
   } catch (error) {
-    console.error("/api/ask failed:", error);
+    console.error("/api/ask failed, switching to offline demo mode:", error?.message || error);
 
-    if (!res.headersSent) {
-      return res
-        .status(500)
-        .json({ error: "Failed to process ask request with Gemini." });
-    }
-
-    res.write(
-      `event: error\\ndata: ${JSON.stringify({ error: "Gemini streaming request failed." })}\\n\\n`,
+    return writeMockSseResponse(
+      res,
+      "(Offline Mode) Here is the mock migration script and rollout plan. First, move the public demo surfaces from Vercel Pro to Firebase Hosting. Next, redirect model requests through a single managed path and replace the Pinecone demo path with pgvector on Postgres. Finally, verify the new flow against the live presentation stack so the demo stays stable even without Gemini access."
     );
-    res.end();
   }
 });
 

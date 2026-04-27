@@ -79,6 +79,24 @@ export async function generateDigest(alerts: unknown[]): Promise<string> {
   return typeof data?.markdown === 'string' ? data.markdown : '';
 }
 
+export async function generateDiligence(alerts: unknown[], stack: unknown[]): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/diligence`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ alerts, stack }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Diligence request failed (${response.status}): ${errorBody}`);
+  }
+
+  const data = await response.json();
+  return typeof data?.markdown === 'string' ? data.markdown : '';
+}
+
 export async function askGemini(
   alertContext: unknown,
   question: string,
