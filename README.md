@@ -13,15 +13,15 @@
 
 <br/>
 
-[![Live Demo](https://img.shields.io/badge/🚀%20Live%20Demo-Click%20Here-00E5FF?style=for-the-badge)](https://your-live-url-here.com)
+[![Live Demo](https://img.shields.io/badge/🚀%20Live%20Demo-stack--sense.web.app-00E5FF?style=for-the-badge)](https://stack-sense.web.app/)
 [![Video Demo](https://img.shields.io/badge/🎥%20Video%20Demo-Watch%20Now-EF9F27?style=for-the-badge)](https://your-video-url-here.com)
 [![Devpost](https://img.shields.io/badge/🏆%20Devpost-Submission-E24B4A?style=for-the-badge)](https://devpost.com/your-submission-link)
 
 <br/>
 
-![StackSense Banner](https://placehold.co/1200x475/050E1A/00E5FF?text=StackSense+—+AI+Intelligence+Layer&font=monospace)
+![StackSense Banner](https://placehold.co/1200x475/050E1A/00E5FF?text=StackSense+—+AI+Intelligence+Layer+for+Technical+Founders&font=monospace)
 
-<!-- 💡 Replace the image above with your actual screenshot or banner -->
+<!-- 💡 Replace the banner above with an actual screenshot of your live app -->
 
 </div>
 
@@ -29,16 +29,16 @@
 
 ## 🎯 The Problem
 
-Technical co-founders like **Sam** face this every week:
+Technical co-founders like **Sam** face this every single week:
 
 | What Happened | What Sam Lost |
 |---|---|
-| Gemini Flash pricing dropped 40% | He didn't know for **3 weeks** |
-| New OSS agent framework released | Could replace a **$400/month** SaaS — no time to evaluate |
-| Deprecation notice buried in changelog | Will **break his embeddings** in 2 weeks |
-| Competitors already switched | He didn't. |
+| Gemini Flash pricing dropped 40% | He didn't know for **3 weeks** — overpaid $240 |
+| New open-source agent framework released | Could replace a **$400/month** SaaS — no time to evaluate |
+| Deprecation notice buried in a changelog | Will **break his embeddings integration** in 2 weeks |
+| His competitors already switched | He didn't. |
 
-> *"Technical founders spend hours every week trying to keep up with a tooling landscape that reshuffles itself faster than they can ship."*
+> *"Technical founders spend hours every week trying to keep up with a tooling landscape that reshuffles itself faster than they can ship. Pricing changes, deprecation notices, framework releases — all buried in changelogs nobody has time to read."*
 
 **StackSense fixes this.** It is the AI that reads everything so Sam doesn't have to.
 
@@ -46,37 +46,59 @@ Technical co-founders like **Sam** face this every week:
 
 ## ✨ Features
 
-### 🧩 1. Conversational Stack Onboarding
-Enter your stack in plain English. Claude parses it into beautiful interactive tech cards — tools, vendors, cost profile, architecture type — in seconds.
+### 🎬 Cinematic Boot Experience
+A full-screen animated intro plays on first load — a neon SVG car races across the screen trailing glowing code snippets (`const alerts = await claude.search(stack)`, `⚡ detected: gemini flash -40% cost`) before the dashboard slams into view. Sets the tone before you've typed a single character.
 
-### ⚡ 2. Live Scan Engine *(the WOW moment)*
-Hit **Scan Now**. Watch a real-time terminal feed as Claude searches the web across every tool in your stack:
+### 🧩 Conversational Stack Onboarding
+Enter your stack in plain English — no forms, no dropdowns. Claude parses it in real time into beautiful interactive tech cards, each showing tool name, category, and estimated monthly cost share. A typewriter placeholder cycles through real founder archetypes to get you started instantly.
+
+### ⚡ Live Scan Engine *(the WOW moment)*
+Hit **Scan Now**. Watch a real-time terminal feed as Claude searches the live web across every tool in your stack — pricing pages, changelogs, release notes, all of it:
+
 ```
-🔍 Scanning Vertex AI pricing page...
-🔍 Reading Cohere changelog...
-⚡ Detected: Gemini 2.5 Flash pricing update...
-✅ Scan complete — 2 items need your attention
+[14:22:01] 🔍 Scanning Vertex AI pricing page...
+[14:22:03] 🔍 Reading Cohere v2 changelog...
+[14:22:06] ⚡ Detected: Gemini 2.5 Flash pricing update — -40% on input tokens
+[14:22:09] ⚠️  Cohere v2 embeddings endpoint deprecating in 18 days
+[14:22:11] ✅ Scan complete — 2 items need your attention
 ```
-Powered by **Claude's streaming API + web search** — every result is live, not cached.
 
-### 📊 3. Impact-Ranked Intelligence Dashboard
-Each finding surfaces as a card with:
-- 🔴🟡🟢 Impact level (Critical / Watch / FYI)
-- 💰 Dollar impact estimate (`"Save ~$340/month"`)
-- ⚡ Specific action recommendation
-- 📅 Detection date + source link
+Powered by **Claude's streaming API + live web search** — every result is fetched fresh, not cached. A 5-bar CSS waveform equalizer pulses while Claude works. Critical findings trigger a red border flash on the terminal.
 
-### 💬 4. "Ask Claude" Inline Chat *(the killer feature)*
-Every alert card has an expandable Claude chat — pre-loaded with your stack context and the specific finding. Ask `"How hard is it to migrate?"` and get expert advice tuned to *your* architecture.
+### 📊 Impact-Ranked Intelligence Dashboard
+Each finding surfaces as a cinematic card entering with a 3D perspective animation:
+- 🔴🟡🟢 **Impact level** — Critical / Watch / FYI
+- 💰 **Dollar impact** — animated counter ticking up to the exact figure (`Save ~$340/month`)
+- ⚡ **Action recommendation** — specific, not vague
+- 📅 **Detected date + source link**
+- ⏰ **Urgency chip** — "Act within 18 days" when time-sensitive
 
-### 📈 5. Runway Impact Meter
-A live gauge showing current monthly spend, potential savings detected this week, and projected 6-month runway impact — updates dynamically as new alerts come in.
+### 🪟 Floating Detail Windows
+Click **Expand Details** on any alert — a draggable floating panel appears with the full dollar math breakdown (current spend → new spend → monthly saving → annual saving), a migration checklist with functional checkboxes, and the full source link. Stack multiple windows open at once and drag them anywhere.
 
-### 🏥 6. Stack Health Score
-Claude scores your stack 0–100 across cost efficiency, deprecation risk, vendor lock-in, and competitive modernity — shown as an animated radial gauge with per-category drilldown.
+### 💬 "Ask Claude" Inline Chat *(the killer feature)*
+Every alert card has an expandable Claude chat, pre-loaded with your full stack context and the specific finding. Ask `"How hard is it to migrate?"` or `"Will this break our current setup?"` — Claude responds with expert migration guidance tuned to *your exact architecture*, streamed in real time.
 
-### 📧 7. Weekly Digest Email Preview
-Auto-generates a beautiful HTML email digest with a Claude-written subject line (e.g. *"2 things that could save your startup $340 this week"*). Exportable and ready to copy.
+### ⌨️ Command Palette (Cmd+K)
+Press **Cmd+K** from anywhere in the app to open a floating command palette. Ask anything in natural language: *"What's my most urgent action?"*, *"Calculate total potential savings"*, *"What changed in my AI tools this week?"* — Claude answers with full context of your stack and current alerts.
+
+### 🔍 Stack Inspector Pill
+A persistent floating pill in the bottom-right shows live health status for every tool in your stack with color-coded dots (green / amber / red). Click any tool to open its floating detail window. Always one click away, never in your way.
+
+### 📈 Runway Impact Meter
+A live SVG arc gauge with a slot-machine digit counter showing your current monthly tooling spend, savings detected this session, and projected annual runway impact. Updates dynamically as new alerts arrive — watching the number climb as Claude finds savings is genuinely satisfying.
+
+### 🏥 Stack Health Score
+Claude scores your stack 0–100 across four axes:
+- **Cost Efficiency** — are you overpaying for what you're using?
+- **Deprecation Risk** — how close are you to a breaking change?
+- **Vendor Lock-in** — how tied are you to proprietary platforms?
+- **Competitive Modernity** — are you running what the best teams run?
+
+Displayed as an animated radial gauge with sequential arc drawing on load. Scores update after every scan.
+
+### 📧 Weekly Digest Email Preview
+Generates a ready-to-send HTML email digest — Claude writes the subject line (*"2 things that could save your startup $340 this week"*), body bullets, and call to action. Preview it in-app and copy the HTML directly.
 
 ---
 
@@ -84,12 +106,16 @@ Auto-generates a beautiful HTML email digest with a Claude-written subject line 
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 19, Tailwind CSS v4, CSS Animations |
-| **AI Engine** | Claude API (`claude-sonnet-4-20250514`), Web Search Tool, Streaming |
-| **Typography** | JetBrains Mono · Space Grotesk |
-| **Deployment** | Google Cloud Run |
-| **State / Auth** | Firebase |
-| **Build Tooling** | Vite 6, TypeScript 5.8 |
+| **Frontend** | React 18, CSS Animations (no UI framework) |
+| **AI Engine** | Claude API `claude-sonnet-4-20250514` |
+| **AI Features** | Streaming API, Web Search Tool, Multi-turn Chat |
+| **Typography** | JetBrains Mono · Space Grotesk (Google Fonts) |
+| **Deployment** | Firebase Hosting |
+| **Build Tooling** | Vite |
+| **Canvas** | HTML5 Canvas (particle network background) |
+
+### Why Claude is essential
+Remove Claude and the product is nothing. Claude performs live web searches across unstructured changelog text, filters findings by relevance to a specific founder's stack, estimates dollar impact from pricing page data, and provides contextual migration advice — none of which is possible with a rule-based system or a simple feed aggregator. The streaming API makes the live terminal experience real, not simulated.
 
 ---
 
@@ -111,18 +137,18 @@ npm install
 
 # Set up environment variables
 cp .env.example .env.local
-# → Open .env.local and add your ANTHROPIC_API_KEY
+# → Add your ANTHROPIC_API_KEY to .env.local
 
 # Start the development server
 npm run dev
 ```
 
-The app will be running at **`http://localhost:3000`**
+App runs at **`http://localhost:5173`**
 
 ### Environment Variables
 
 ```env
-ANTHROPIC_API_KEY=your_api_key_here
+VITE_ANTHROPIC_API_KEY=your_api_key_here
 ```
 
 ---
@@ -132,14 +158,29 @@ ANTHROPIC_API_KEY=your_api_key_here
 ```
 stacksense/
 ├── src/
-│   ├── App.tsx              # Main application & all UI components
-│   ├── main.tsx             # React entry point
-│   └── index.css            # Global styles & design tokens
+│   ├── App.jsx                  # Root — screen routing & global state
+│   ├── components/
+│   │   ├── BootScreen.jsx       # Cinematic intro (SVG car + code trail)
+│   │   ├── OnboardingScreen.jsx # Stack input with typewriter placeholders
+│   │   ├── TechCardGrid.jsx     # Parsed tool cards with spring animation
+│   │   ├── ParticleCanvas.jsx   # Full-page interactive particle network
+│   │   ├── Navbar.jsx           # ECG heartbeat + live clock + Scan Now
+│   │   ├── ScanTerminal.jsx     # Live streaming terminal with waveform EQ
+│   │   ├── AlertCard.jsx        # 3D entrance cards with dollar counter
+│   │   ├── FloatingWindow.jsx   # Draggable detail panels
+│   │   ├── InlineChat.jsx       # Per-alert Claude chat with streaming
+│   │   ├── CommandPalette.jsx   # Cmd+K AI search overlay
+│   │   ├── StackInspector.jsx   # Bottom-right floating tool health pill
+│   │   ├── RunwayGauge.jsx      # SVG arc gauge with slot-machine counter
+│   │   ├── HealthScore.jsx      # Radial score gauge (4 categories)
+│   │   └── WeeklyDigest.jsx     # Claude-generated email digest preview
+│   ├── hooks/
+│   │   └── useScan.js           # Core scan engine (streaming + web search)
+│   └── index.css                # Design tokens + global styles
 ├── public/
 ├── index.html
-├── vite.config.ts           # Vite + Tailwind config
+├── vite.config.js
 ├── package.json
-├── tsconfig.json
 └── .env.example
 ```
 
@@ -147,14 +188,19 @@ stacksense/
 
 ## 🎬 Demo
 
-> **[▶ Watch the full demo →](https://your-video-url-here.com)**
+> **[▶ Watch the full 2-minute demo →](https://your-video-url-here.com)**
 
-**What the judges see in 2 minutes:**
-1. App opens — stack is pre-filled for speed
-2. **Scan Now** is hit — Claude scans the web live in the terminal
-3. Two alert cards appear: a pricing drop + an upcoming deprecation
-4. **Ask Claude** is clicked → *"How hard is it to switch?"*
-5. Claude responds with migration steps tailored to the founder's exact stack
+**What happens in the demo:**
+1. Cinematic boot screen plays — SVG car + code trail
+2. Onboarding — typewriter placeholder shows, stack is entered in natural language
+3. Tech cards spring into view — each tool parsed and categorized
+4. **Scan Now** is hit — Claude searches the live web, terminal fills in real time
+5. Two alert cards slam in: a pricing drop and an upcoming deprecation, both with dollar figures
+6. **Expand Details** opens a draggable floating window with the full cost breakdown
+7. **Ask Claude** is clicked on the pricing alert → *"How hard is it to migrate?"*
+8. Claude streams a migration plan specific to the founder's exact stack
+9. **Cmd+K** palette opens → *"What's my most urgent action?"* → instant answer
+10. Health score and runway gauge animate into view
 
 ---
 
@@ -164,8 +210,6 @@ stacksense/
 |---|---|---|---|
 | **Zoha Ashraf** | Co-founder · Frontend & AI Integration | [github.com/zoha-ashraf](https://github.com/zoha-ashraf) | [linkedin.com/in/zoha-ashraf](https://linkedin.com/in/zoha-ashraf) |
 | **Bilal Rauf** | Co-founder · Backend & Deployment | [github.com/bilal-rauf](https://github.com/bilal-rauf) | [linkedin.com/in/bilal-rauf](https://linkedin.com/in/bilal-rauf) |
-
-> 💡 *Update the profile links above with your actual GitHub and LinkedIn URLs.*
 
 ---
 
@@ -188,5 +232,7 @@ MIT © 2026 Zoha Ashraf & Bilal Rauf
 <div align="center">
 
 *If StackSense would've saved Sam $340/month — give it a ⭐*
+
+**[stack-sense.web.app](https://stack-sense.web.app/) · Built with Claude · GDG on Campus FAST NUCES CFD**
 
 </div>
