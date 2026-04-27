@@ -1,0 +1,11 @@
+{
+  "name": "StackSense",
+  "description": "AI Intelligence Layer for Technical Founders to monitor stack health, reduce costs, and extend runway.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "AI-powered stack scanning",
+    "Real-time runway impact projection",
+    "Technical intelligence alerts",
+    "Contextual AI chat"
+  ]
+}

@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-bg: #0A0C10;
+  --color-brand-card: #151921;
+  --color-brand-cyan: #00F5FF;
+  --color-brand-amber: #FFB800;
+  --color-brand-red: #FF4D4D;
+  --color-brand-border: #2D333F;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-gray-100 font-sans;
+  }
+}
+
+.terminal-cursor::after {
+  content: "";
+  @apply inline-block w-2 h-5 ml-1 bg-brand-cyan align-middle;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { opacity: 1; }
+  50% { opacity: 0; }
+}
