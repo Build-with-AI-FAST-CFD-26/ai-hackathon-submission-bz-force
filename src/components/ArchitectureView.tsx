@@ -37,14 +37,16 @@ export default function ArchitectureView({ mermaidGraph }: ArchitectureViewProps
       containerRef.current.innerHTML = '';
       setError('');
 
-      if (!mermaidGraph.trim()) {
+      const normalizedGraph = normalizeMermaidGraph(mermaidGraph);
+
+      if (!normalizedGraph) {
         setError('No architecture diagram returned yet. Run a fresh scan to generate one.');
         return;
       }
 
       try {
         const uniqueId = `mermaid-${Date.now()}`;
-        const { svg } = await mermaid.render(uniqueId, mermaidGraph);
+        const { svg } = await mermaid.render(uniqueId, normalizedGraph);
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
         }
@@ -85,4 +87,15 @@ export default function ArchitectureView({ mermaidGraph }: ArchitectureViewProps
       </motion.div>
     </div>
   );
+}
+
+function normalizeMermaidGraph(graph: string) {
+  return graph
+    .replace(/```mermaid/gi, '')
+    .replace(/```/g, '')
+    .trim()
+    .replace(/^graph\s+TD\s+/i, 'graph TD\n')
+    .replace(/^flowchart\s+TD\s+/i, 'flowchart TD\n')
+    .replace(/;\s*/g, '\n')
+    .replace(/\n{3,}/g, '\n\n');
 }
