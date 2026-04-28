@@ -227,6 +227,7 @@ app.post("/api/scan", async (req, res) => {
             "Identify specific optimization opportunities, deprecated tools, architecture risks, and concrete cost-saving measures. " +
             "Categorize every alert into exactly one of three buckets: FinOps (cost), DevOps (velocity), or Security (risk). " +
             "Also generate a valid Mermaid flowchart string using graph TD syntax that maps the conceptual connections between the provided stack tools. " +
+            "You MUST output valid, multiline Mermaid.js syntax. Separate every single link or node definition with a newline \n. Do NOT put multiple statements on one line. You MUST wrap all node text labels in double quotes to prevent parsing errors (Example: A[\"Vercel Frontend\"] --> B[\"Backend API/Service\"]). " +
             "Be practical and specific. Base analysis on the provided stack and monthly spend. " +
             "Return only valid JSON matching the required schema.",
         },
@@ -241,8 +242,9 @@ app.post("/api/scan", async (req, res) => {
             {
               text:
                 "Analyze this startup stack and spending profile. Return 4-8 alerts ordered by estimatedSavings descending.\\n" +
-                `Stack: ${JSON.stringify(stack)}\\n` +
-                `Monthly spend: ${monthlySpend}`,
+                `Stack: ${JSON.stringify(stack)}\n` +
+                `Monthly spend: ${monthlySpend}\n` +
+                "For mermaidGraph, use only multiline Mermaid.js syntax with one statement per line and wrap every node label in double quotes.",
             },
           ],
         },
