@@ -510,24 +510,24 @@ app.post("/api/sync", async (req, res) => {
 });
 
 app.post("/api/ask", async (req, res) => {
+  const { alertContext, question } = req.body || {};
+  if (!alertContext || typeof alertContext !== "object") {
+    return res.status(400).json({ error: "'alertContext' must be an object." });
+  }
+  if (typeof question !== "string" || !question.trim()) {
+    return res.status(400).json({ error: "'question' must be a non-empty string." });
+  }
+  
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
   try {
     const client = getGeminiOrRespond(res);
     if (!client) {
-      return;
-    }
-
-    const { alertContext, question } = req.body || {};
-
-    if (!alertContext || typeof alertContext !== "object") {
-      return res.status(400).json({
-        error: "Invalid request body. 'alertContext' must be an object.",
-      });
-    }
-
-    if (typeof question !== "string" || !question.trim()) {
-      return res.status(400).json({
-        error: "Invalid request body. 'question' must be a non-empty string.",
-      });
+      res.write(`data: ${JSON.stringify({ text: "(Offline Mode) Here is the mock migration script for your tool..." })}\n\n`);
+      return res.end();
     }
 
     const model = client.getGenerativeModel({
@@ -544,11 +544,6 @@ app.post("/api/ask", async (req, res) => {
       ],
     });
 
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("Connection", "keep-alive");
-    res.flushHeaders?.();
-
     let closed = false;
     req.on("close", () => {
       closed = true;
@@ -561,9 +556,9 @@ app.post("/api/ask", async (req, res) => {
           parts: [
             {
               text:
-                "Alert context:\\n" +
+                "Alert context:\n" +
                 JSON.stringify(alertContext, null, 2) +
-                "\\n\\nUser question:\\n" +
+                "\n\nUser question:\n" +
                 question,
             },
           ],
@@ -576,23 +571,19 @@ app.post("/api/ask", async (req, res) => {
         break;
       }
 
-      const text = chunk.text();
-      if (text) {
-        res.write(`data: ${JSON.stringify({ text })}\\n\\n`);
+      const chunkValue = chunk.text();
+      if (chunkValue) {
+        res.write(`data: ${JSON.stringify({ text: chunkValue })}\n\n`);
       }
     }
 
     if (!closed) {
-      res.write("event: done\ndata: [DONE]\n\n");
       res.end();
     }
   } catch (error) {
     console.error("/api/ask failed, switching to offline demo mode:", error?.message || error);
-
-    return writeMockSseResponse(
-      res,
-      "(Offline Mode) Here is the mock migration script and rollout plan. First, move the public demo surfaces from Vercel Pro to Firebase Hosting. Next, redirect model requests through a single managed path and replace the Pinecone demo path with pgvector on Postgres. Finally, verify the new flow against the live presentation stack so the demo stays stable even without Gemini access."
-    );
+    res.write(`data: ${JSON.stringify({ text: "(Offline Mode) Here is the mock migration script for your tool..." })}\n\n`);
+    return res.end();
   }
 });
 
