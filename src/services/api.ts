@@ -12,6 +12,16 @@ export type ScanResponse = {
   mermaidGraph: string;
 };
 
+export type BusinessStateItem = {
+  type: 'Lead' | 'Deadline' | 'Task' | 'Promise';
+  item: string;
+};
+
+export type FounderSyncResponse = {
+  paulActions: string[];
+  coordinationAlerts: string[];
+};
+
 type AskGeminiChunk = (chunk: string) => void;
 type AskGeminiDone = () => void;
 type AskGeminiError = (error: unknown) => void;
@@ -95,6 +105,30 @@ export async function generateDiligence(alerts: unknown[], stack: unknown[]): Pr
 
   const data = await response.json();
   return typeof data?.markdown === 'string' ? data.markdown : '';
+}
+
+export async function syncFounders(
+  businessState: BusinessStateItem[],
+  alerts: unknown[]
+): Promise<FounderSyncResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/sync`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ businessState, alerts }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Founder sync request failed (${response.status}): ${errorBody}`);
+  }
+
+  const data = await response.json();
+  return {
+    paulActions: Array.isArray(data?.paulActions) ? data.paulActions : [],
+    coordinationAlerts: Array.isArray(data?.coordinationAlerts) ? data.coordinationAlerts : [],
+  };
 }
 
 export async function askGemini(

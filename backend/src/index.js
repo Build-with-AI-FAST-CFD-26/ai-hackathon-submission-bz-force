@@ -129,6 +129,19 @@ function buildMockDiligenceMarkdown(alerts, stack) {
   ].join("\n\n");
 }
 
+function buildMockFounderSyncResponse() {
+  return {
+    paulActions: [
+      "PRIORITY: Finish the Mailchimp welcome sequence so new inbound leads are nurtured automatically.",
+      "PRIORITY: Re-engage Acme Corp with a concrete demo follow-up window and owner.",
+      "PRIORITY: Lock YC application milestones now to avoid Friday submission risk.",
+    ],
+    coordinationAlerts: [
+      "ALIGNMENT WARNING: Paul promised a new Vector Search feature next week, but Sam's stack scan flagged Pinecone for a critical migration path. Commit timeline after migration plan is approved.",
+    ],
+  };
+}
+
 async function writeMockSseResponse(res, text) {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -417,6 +430,82 @@ app.post("/api/diligence", async (req, res) => {
   } catch (error) {
     console.error("/api/diligence failed, switching to offline demo mode:", error?.message || error);
     return res.json({ markdown: buildMockDiligenceMarkdown(req.body?.alerts || [], req.body?.stack || []) });
+  }
+});
+
+app.post("/api/sync", async (req, res) => {
+  try {
+    const client = getGeminiOrRespond(res);
+    const { businessState, alerts } = req.body || {};
+
+    if (!Array.isArray(businessState) || !Array.isArray(alerts)) {
+      return res.status(400).json({
+        error: "Invalid request body. 'businessState' and 'alerts' must both be arrays.",
+      });
+    }
+
+    if (!client) {
+      return res.json(buildMockFounderSyncResponse());
+    }
+
+    const model = client.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            paulActions: {
+              type: SchemaType.ARRAY,
+              items: { type: SchemaType.STRING },
+            },
+            coordinationAlerts: {
+              type: SchemaType.ARRAY,
+              items: { type: SchemaType.STRING },
+            },
+          },
+          required: ["paulActions", "coordinationAlerts"],
+        },
+        temperature: 0.3,
+      },
+      systemInstruction: [
+        {
+          text:
+            "You are an AI Chief of Staff for a startup with two founders: Paul (business) and Sam (technical). " +
+            "Cross-reference Paul's business-state tasks with Sam's technical alerts and return practical coordination guidance. " +
+            "Output exactly two arrays: paulActions and coordinationAlerts. " +
+            "paulActions must triage Paul's tasks in priority order and begin each item with 'PRIORITY:'. " +
+            "coordinationAlerts must identify promise-versus-delivery conflicts and begin each item with 'ALIGNMENT WARNING:'. " +
+            "Keep each item concise, concrete, and execution-oriented.",
+        },
+      ],
+    });
+
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                "Paul business state:\n" +
+                JSON.stringify(businessState, null, 2) +
+                "\n\nSam technical alerts:\n" +
+                JSON.stringify(alerts, null, 2),
+            },
+          ],
+        },
+      ],
+    });
+
+    const parsed = parseJsonSafely(result.response.text());
+    return res.json({
+      paulActions: Array.isArray(parsed?.paulActions) ? parsed.paulActions : [],
+      coordinationAlerts: Array.isArray(parsed?.coordinationAlerts) ? parsed.coordinationAlerts : [],
+    });
+  } catch (error) {
+    console.error("/api/sync failed, switching to offline demo mode:", error?.message || error);
+    return res.json(buildMockFounderSyncResponse());
   }
 });
 

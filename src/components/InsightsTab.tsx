@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, FileText, ShieldCheck } from 'lucide-react';
+import { Sparkles, FileText, ShieldCheck, Link2, AlertTriangle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Alert, StackItem } from '../types';
+import { Alert, BusinessStateItem, FounderSyncResult, StackItem } from '../types';
 
 interface InsightsTabProps {
   alerts: Alert[];
@@ -12,14 +12,34 @@ interface InsightsTabProps {
   implementedSavings: number;
   onGenerateInsights: () => Promise<string>;
   onGenerateDiligence: () => Promise<string>;
+  founderSync: FounderSyncResult;
+  onSyncFounders: (businessState: BusinessStateItem[]) => Promise<FounderSyncResult>;
 }
 
-export default function InsightsTab({ alerts, stack, monthlyCost, implementedSavings, onGenerateInsights, onGenerateDiligence }: InsightsTabProps) {
+export default function InsightsTab({
+  alerts,
+  stack,
+  monthlyCost,
+  implementedSavings,
+  onGenerateInsights,
+  onGenerateDiligence,
+  founderSync,
+  onSyncFounders,
+}: InsightsTabProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingDiligence, setIsGeneratingDiligence] = useState(false);
+  const [isSyncingFounders, setIsSyncingFounders] = useState(false);
   const [report, setReport] = useState('');
   const [reportMode, setReportMode] = useState<'summary' | 'diligence'>('summary');
   const [error, setError] = useState('');
+  const [businessState, setBusinessState] = useState<BusinessStateItem[]>([]);
+
+  const demoBusinessState: BusinessStateItem[] = [
+    { type: 'Lead', item: 'Acme Corp Demo (Cold)' },
+    { type: 'Deadline', item: 'YC Application (Due Friday)' },
+    { type: 'Task', item: 'Mailchimp Welcome Sequence (Draft)' },
+    { type: 'Promise', item: 'Promised investors new Vector Search by next week' },
+  ];
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -46,6 +66,27 @@ export default function InsightsTab({ alerts, stack, monthlyCost, implementedSav
       setError(err instanceof Error ? err.message : 'Failed to generate diligence report.');
     } finally {
       setIsGeneratingDiligence(false);
+    }
+  };
+
+  const handleLoadBusinessState = () => {
+    setBusinessState(demoBusinessState);
+  };
+
+  const handleSyncFounders = async () => {
+    setIsSyncingFounders(true);
+    setError('');
+
+    try {
+      const inputState = businessState.length > 0 ? businessState : demoBusinessState;
+      if (businessState.length === 0) {
+        setBusinessState(demoBusinessState);
+      }
+      await onSyncFounders(inputState);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate founder sync plan.');
+    } finally {
+      setIsSyncingFounders(false);
     }
   };
 
@@ -90,6 +131,81 @@ export default function InsightsTab({ alerts, stack, monthlyCost, implementedSav
         <StatCard label="Alerts Reviewed" value={String(alerts.length)} />
         <StatCard label="Monthly Cost" value={`$${monthlyCost.toLocaleString()}`} />
         <StatCard label="Savings Implemented" value={`$${implementedSavings.toLocaleString()}`} />
+      </div>
+
+      <div className="bg-brand-card border border-brand-border rounded-2xl p-6 space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-brand-amber/10 border border-brand-amber/30 flex items-center justify-center">
+              <Link2 className="w-5 h-5 text-brand-amber" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold">Founder Sync</h3>
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Bridge Paul's execution with Sam's technical constraints</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleLoadBusinessState}
+              type="button"
+              className="text-xs font-mono uppercase tracking-wider text-gray-400 hover:text-brand-cyan transition-colors"
+            >
+              Load Business State
+            </button>
+            <button
+              onClick={handleSyncFounders}
+              disabled={isSyncingFounders}
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-brand-cyan/40 bg-brand-cyan/10 px-4 py-2.5 font-bold text-brand-cyan hover:scale-[1.02] transition-transform disabled:opacity-50"
+            >
+              <Sparkles className="w-4 h-4" />
+              {isSyncingFounders ? 'SYNCING...' : 'Run Founder Sync'}
+            </button>
+          </div>
+        </div>
+
+        {businessState.length > 0 ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {businessState.map((entry) => (
+              <div key={`${entry.type}-${entry.item}`} className="rounded-lg border border-brand-border bg-brand-bg px-3 py-2 text-sm">
+                <span className="text-[10px] uppercase tracking-widest font-mono text-gray-500 mr-2">{entry.type}</span>
+                <span className="text-gray-300">{entry.item}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-xs text-gray-500 font-mono">No business state loaded yet. Use Load Business State for the live pitch scenario.</div>
+        )}
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-brand-border bg-brand-bg p-4">
+            <div className="text-[10px] uppercase tracking-widest font-mono text-gray-500 mb-3">Paul's Action Items</div>
+            {founderSync.paulActions.length > 0 ? (
+              <ul className="space-y-2 text-sm text-gray-200 list-disc list-inside">
+                {founderSync.paulActions.map((action) => (
+                  <li key={action}>{action}</li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-xs text-gray-500 font-mono">Run Founder Sync to generate Paul's prioritized next actions.</div>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-brand-amber/40 bg-brand-amber/10 p-4">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-mono text-brand-amber mb-3">
+              <AlertTriangle className="w-3.5 h-3.5" /> Alignment Warnings
+            </div>
+            {founderSync.coordinationAlerts.length > 0 ? (
+              <ul className="space-y-2 text-sm text-brand-amber list-disc list-inside">
+                {founderSync.coordinationAlerts.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-xs text-brand-amber/80 font-mono">Coordination conflicts will appear here after sync runs.</div>
+            )}
+          </div>
+        </div>
       </div>
 
       <motion.div

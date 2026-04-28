@@ -39,4 +39,14 @@ export interface ScanResult {
   runwayImpactMonths: number;
 }
 
+export interface BusinessStateItem {
+  type: 'Lead' | 'Deadline' | 'Task' | 'Promise';
+  item: string;
+}
+
+export interface FounderSyncResult {
+  paulActions: string[];
+  coordinationAlerts: string[];
+}
+
 export type DashboardTab = 'overview' | 'stack' | 'runway' | 'architecture' | 'insights' | 'digest';

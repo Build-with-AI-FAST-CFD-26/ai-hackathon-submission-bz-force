@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   Info
 } from 'lucide-react';
-import { UserContext, Alert, ImpactLevel, StackItem, DashboardTab } from '../types';
+import { UserContext, Alert, ImpactLevel, StackItem, DashboardTab, FounderSyncResult, BusinessStateItem } from '../types';
 import Sidebar from './Sidebar';
 import TerminalView from './TerminalView';
 import AlertCard from './AlertCard';
@@ -53,6 +53,8 @@ interface DashboardProps {
   onGenerateInsights: () => Promise<string>;
   onGenerateDigest: () => Promise<string>;
   onGenerateDiligence: () => Promise<string>;
+  founderSync: FounderSyncResult;
+  onSyncFounders: (businessState: BusinessStateItem[]) => Promise<FounderSyncResult>;
 }
 
 export default function Dashboard({
@@ -79,6 +81,8 @@ export default function Dashboard({
   onGenerateInsights,
   onGenerateDigest,
   onGenerateDiligence,
+  founderSync,
+  onSyncFounders,
 }: DashboardProps) {
   const visibleAlerts = alerts.filter((item) => item.status !== 'dismissed');
   const currentMonthlySpend = context.stack.reduce((sum, item) => sum + (Number(item.monthlyCost) || 0), 0);
@@ -324,6 +328,8 @@ export default function Dashboard({
                     implementedSavings={implementedSavings}
                     onGenerateInsights={onGenerateInsights}
                     onGenerateDiligence={onGenerateDiligence}
+                    founderSync={founderSync}
+                    onSyncFounders={onSyncFounders}
                   />
                 </Suspense>
               </motion.div>

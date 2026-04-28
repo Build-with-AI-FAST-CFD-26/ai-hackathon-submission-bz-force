@@ -5,10 +5,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Alert, DashboardTab, ImpactLevel, StackItem, UserContext } from './types';
+import { Alert, BusinessStateItem, DashboardTab, FounderSyncResult, ImpactLevel, StackItem, UserContext } from './types';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
-import { askGemini, generateDigest, generateDiligence, generateInsights, scanStack } from './services/api';
+import { askGemini, generateDigest, generateDiligence, generateInsights, scanStack, syncFounders } from './services/api';
 
 const STORAGE_KEY = 'stacksense_user_context';
 
@@ -27,6 +27,10 @@ export default function App() {
   const [implementedSavings, setImplementedSavings] = useState(0);
   const [hasPendingRescan, setHasPendingRescan] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
+  const [founderSync, setFounderSync] = useState<FounderSyncResult>({
+    paulActions: [],
+    coordinationAlerts: [],
+  });
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -242,6 +246,12 @@ export default function App() {
     return generateDiligence(alerts, context.stack);
   };
 
+  const handleSyncFounders = async (businessState: BusinessStateItem[]) => {
+    const syncResult = await syncFounders(businessState, alerts);
+    setFounderSync(syncResult);
+    return syncResult;
+  };
+
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-brand-bg flex items-center justify-center">
@@ -300,6 +310,8 @@ export default function App() {
               onGenerateInsights={handleGenerateInsights}
               onGenerateDigest={handleGenerateDigest}
               onGenerateDiligence={handleGenerateDiligence}
+              founderSync={founderSync}
+              onSyncFounders={handleSyncFounders}
             />
           </motion.div>
         )}
