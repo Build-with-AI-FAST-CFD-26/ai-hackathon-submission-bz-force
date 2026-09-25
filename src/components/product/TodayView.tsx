@@ -1,0 +1,20 @@
+import { RefreshCw, ScanSearch } from 'lucide-react';
+import type { OperatingMode } from '../../config/operatingMode';
+import type { ProductAlert, StackItem } from '../../types';
+import FindingCard from './FindingCard';
+import { EmptyState, ErrorState, MetricCard, PageHeader, StatusBadge } from './ProductUI';
+
+export default function TodayView({ alerts, stack, mode, isScanning, scanError, scanMessages, lastScan, pendingRescan, implementedSavings, onScan, onOpen, onImplement, onDismiss }: { alerts: ProductAlert[]; stack: StackItem[]; mode: OperatingMode; isScanning: boolean; scanError: string | null; scanMessages: string[]; lastScan: Date | null; pendingRescan: boolean; implementedSavings: number; onScan: () => void; onOpen: (id: string) => void; onImplement: (id: string) => void; onDismiss: (id: string) => void }) {
+  const visible = alerts.filter((finding) => finding.status !== 'dismissed');
+  const active = visible.filter((finding) => finding.status === 'active');
+  const projected = active.reduce((total, finding) => total + finding.potentialSavings, 0);
+  const date = new Intl.DateTimeFormat('en', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date());
+  return <div className="product-page today-view">
+    <PageHeader eyebrow={date} title="Today" description={pendingRescan ? 'Your stack changed. Run a new scan when you are ready.' : lastScan ? `Latest scan completed ${lastScan.toLocaleString()}.` : 'Review relevant changes and turn evidence into accountable actions.'} actions={<><StatusBadge tone={isScanning ? 'yellow' : scanError ? 'red' : 'green'}>{isScanning ? 'Scan in progress' : scanError ? 'Scan needs attention' : lastScan ? `${mode === 'demo' ? 'Demo ' : ''}scan complete` : 'Ready to scan'}</StatusBadge><button className="product-button product-button--dark" onClick={onScan} disabled={isScanning || stack.length === 0}>{scanError ? <RefreshCw /> : <ScanSearch />}{isScanning ? 'Scanning…' : scanError ? 'Retry scan' : 'Run scan'}</button></>} />
+    {scanError && <ErrorState title="Scan unavailable" message={scanError} action={<button className="product-button product-button--outline" onClick={onScan}>Retry scan</button>} />}
+    <section className="metric-grid" aria-label="Workspace summary"><MetricCard label="Needs review" value={String(active.length)} note="Current findings" /><MetricCard label="Projected savings" value={`$${projected.toLocaleString()}`} note="Monthly estimate" /><MetricCard label="Session implemented" value={`$${implementedSavings.toLocaleString()}`} note="Not verified savings" /><MetricCard label="Stack coverage" value={stack.length ? `${stack.length} component${stack.length === 1 ? '' : 's'}` : 'Not configured'} note={pendingRescan ? 'Rescan required' : lastScan ? 'Included in latest scan' : 'No scan yet'} /></section>
+    {isScanning && <section className="scan-progress" aria-live="polite"><div><span className="scan-spinner" /><div><h2>{mode === 'demo' ? 'Preparing demo findings' : 'Analysis in progress'}</h2><p>{scanMessages[scanMessages.length - 1]}</p></div></div><ol>{scanMessages.map((message, index) => <li key={`${message}-${index}`}>{message}</li>)}</ol></section>}
+    <div className="section-row"><p className="product-eyebrow">{active.length} finding{active.length === 1 ? '' : 's'} requiring review</p>{mode === 'demo' && <StatusBadge tone="yellow">Demo data</StatusBadge>}</div>
+    {visible.length ? <section className="finding-list">{visible.map((finding, index) => <FindingCard key={finding.id} finding={finding} stack={stack} isDemo={mode === 'demo'} primary={index === 0} onOpen={() => onOpen(finding.id)} onImplement={() => onImplement(finding.id)} onDismiss={() => onDismiss(finding.id)} />)}</section> : <EmptyState title={stack.length ? 'No findings yet' : 'Build your stack first'} description={stack.length ? 'Use the Run scan action above to create findings for the configured components. Existing data will remain visible if a live scan fails.' : 'Add the tools, plans, and cost assumptions that determine which changes matter.'} />}
+  </div>;
+}

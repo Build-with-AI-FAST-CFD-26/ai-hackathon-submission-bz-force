@@ -7,8 +7,14 @@ The prototype is intentionally explicit about its operating state. Demo findings
 ## Routes
 
 - `/` — public StackSense landing page
-- `/app` — interactive product workspace
-- Any other path — friendly not-found page with links back to both routes
+- `/app` — Today workspace
+- `/app/stack` — stack inventory and inferred architecture
+- `/app/changes` — current-session findings feed
+- `/app/savings` — projected and session-implemented impact
+- `/app/reports` — executive summary, digest, diligence, and Founder Sync
+- `/app/settings` — mode, connectivity, limitations, and local reset
+- Unknown `/app/*` paths — product-scoped recovery view
+- Any other path — friendly global not-found page
 
 Firebase Hosting rewrites all paths to `index.html`, so direct navigation and refreshes on `/app` use the client router correctly.
 
@@ -98,8 +104,10 @@ Tests use deterministic fixtures and do not call Gemini or external websites.
 
 Implemented:
 
-- Responsive public landing page and product route
+- Responsive public landing page and route-based product workspace
 - Manual stack configuration stored locally for the demo
+- Evidence/action drawer with URL-backed finding selection
+- Filterable current-session changes, staged savings, reports, and Founder Sync
 - Explicit demo, live, and degraded scan states
 - Structured backend success and error envelopes
 - Demo findings and report fixtures with visible labels

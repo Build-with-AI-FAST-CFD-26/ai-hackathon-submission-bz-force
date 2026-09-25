@@ -32,7 +32,7 @@ export default function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/app" element={<Suspense fallback={<ProductLoading />}><ProductApp /></Suspense>} />
+      <Route path="/app/*" element={<Suspense fallback={<ProductLoading />}><ProductApp /></Suspense>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

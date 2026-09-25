@@ -50,3 +50,6 @@ export interface FounderSyncResult {
 }
 
 export type DashboardTab = 'overview' | 'stack' | 'runway' | 'architecture' | 'insights' | 'digest';
+
+export type FindingStatus = 'active' | 'resolved' | 'dismissed';
+export type ProductAlert = Alert & { status: FindingStatus };

@@ -1,325 +1,76 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Alert, BusinessStateItem, DashboardTab, FounderSyncResult, ImpactLevel, StackItem, UserContext } from './types';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { configuredOperatingMode, type OperatingMode } from './config/operatingMode';
+import type { BusinessStateItem, FounderSyncResult, ImpactLevel, ProductAlert, StackItem, UserContext } from './types';
+import { ImpactLevel as Impact } from './types';
 import Onboarding from './components/Onboarding';
-import Dashboard from './components/Dashboard';
+import ProductShell from './components/product/ProductShell';
+import TodayView from './components/product/TodayView';
+import StackView from './components/product/StackView';
+import ChangesView from './components/product/ChangesView';
+import SavingsView from './components/product/SavingsView';
+import ReportsView from './components/product/ReportsView';
+import SettingsView from './components/product/SettingsView';
+import EvidencePanel from './components/product/EvidencePanel';
 import { ApiRequestError, askGemini, generateDigest, generateDiligence, generateInsights, scanStack, syncFounders } from './services/api';
 import './legacy-product.css';
 
 const STORAGE_KEY = 'stacksense_user_context';
 
-type AlertStatus = 'active' | 'resolved' | 'dismissed';
-type AlertWithStatus = Alert & { status: AlertStatus };
-
 export default function ProductApp() {
-  const [context, setContext] = useState<UserContext | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [isScanning, setIsScanning] = useState(false);
-  const [alerts, setAlerts] = useState<AlertWithStatus[]>([]);
-  const [mermaidGraph, setMermaidGraph] = useState('');
-  const [operatingMode, setOperatingMode] = useState<OperatingMode>(configuredOperatingMode);
-  const [scanError, setScanError] = useState<string | null>(null);
-  const [terminalMessages, setTerminalMessages] = useState<string[]>(['No scan has been run in this workspace.']);
-  const [lastScan, setLastScan] = useState<Date | null>(null);
-  const [implementedSavings, setImplementedSavings] = useState(0);
-  const [hasPendingRescan, setHasPendingRescan] = useState(false);
-  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
-  const [founderSync, setFounderSync] = useState<FounderSyncResult>({
-    paulActions: [],
-    coordinationAlerts: [],
-  });
+  const location = useLocation(); const navigate = useNavigate();
+  const [context, setContext] = useState<UserContext | null>(null); const [initializing, setInitializing] = useState(true); const [isScanning, setIsScanning] = useState(false); const [alerts, setAlerts] = useState<ProductAlert[]>([]); const [mermaidGraph, setMermaidGraph] = useState(''); const [operatingMode, setOperatingMode] = useState<OperatingMode>(configuredOperatingMode); const [scanError, setScanError] = useState<string | null>(null); const [scanMessages, setScanMessages] = useState<string[]>(['No scan has been run in this workspace.']); const [lastScan, setLastScan] = useState<Date | null>(null); const [implementedSavings, setImplementedSavings] = useState(0); const [pendingRescan, setPendingRescan] = useState(false); const [founderSync, setFounderSync] = useState<FounderSyncResult>({ paulActions: [], coordinationAlerts: [] });
+  const [selectedId, setSelectedId] = useState<string | null>(() => new URLSearchParams(location.search).get('finding'));
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      setContext(JSON.parse(saved));
-    }
-    setIsInitializing(false);
-  }, []);
+  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { setContext(JSON.parse(saved)); } catch { localStorage.removeItem(STORAGE_KEY); } } setInitializing(false); }, []);
+  useEffect(() => { if (context) localStorage.setItem(STORAGE_KEY, JSON.stringify(context)); }, [context]);
 
-  useEffect(() => {
-    if (context) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(context));
-    }
-  }, [context]);
+  useEffect(() => { setSelectedId(new URLSearchParams(location.search).get('finding')); }, [location.search]);
+  const selectedFinding = alerts.find((item) => item.id === selectedId);
+  const closeFinding = useCallback(() => { const id = selectedId; setSelectedId(null); navigate(location.pathname, { replace: true }); requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-finding-id="${CSS.escape(id ?? '')}"]`)?.focus()); }, [location.pathname, navigate, selectedId]);
+  const openFinding = (id: string) => { setSelectedId(id); navigate(`${location.pathname}?finding=${encodeURIComponent(id)}`); };
 
-  const handleOnboardingComplete = (newContext: UserContext) => {
-    setContext(newContext);
-    setHasPendingRescan(true);
-  };
+  const reset = () => { localStorage.removeItem(STORAGE_KEY); setContext(null); setAlerts([]); setMermaidGraph(''); setScanMessages(['No scan has been run in this workspace.']); setLastScan(null); setImplementedSavings(0); setPendingRescan(false); setScanError(null); setOperatingMode(configuredOperatingMode); navigate('/app'); };
+  const updateStack = (stack: StackItem[]) => { setContext((previous) => previous ? { ...previous, stack } : previous); setPendingRescan(true); };
+  const addStack = (name: string, monthlyCost: number, category: string) => context && updateStack([...context.stack, { id: crypto.randomUUID(), name, category, monthlyCost }]);
+  const updateStackItem = (id: string, updates: Partial<StackItem>) => context && updateStack(context.stack.map((item) => item.id === id ? { ...item, ...updates } : item));
+  const removeStack = (id: string) => context && updateStack(context.stack.filter((item) => item.id !== id));
+  const loadDemoStack = () => updateStack([{ id: 'demo-api', name: 'Example API', category: 'API', monthlyCost: 500 }, { id: 'demo-database', name: 'Example Database', category: 'Database', monthlyCost: 200 }]);
 
-  const handleReset = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setContext(null);
-    setAlerts([]);
-    setMermaidGraph('');
-    setTerminalMessages(['No scan has been run in this workspace.']);
-    setLastScan(null);
-    setImplementedSavings(0);
-    setHasPendingRescan(false);
-    setActiveTab('overview');
-    setScanError(null);
-    setOperatingMode(configuredOperatingMode);
-  };
-
-  const updateStackContext = (updatedStack: StackItem[]) => {
-    setContext((prev) => {
-      if (!prev) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        stack: updatedStack,
-      };
-    });
-    setHasPendingRescan(true);
-  };
-
-  const handleAddStackItem = (name: string, monthlyCost: number) => {
-    if (!context) {
-      return;
-    }
-
-    const id = Math.random().toString(36).slice(2, 11);
-    updateStackContext([
-      ...context.stack,
-      {
-        id,
-        name,
-        category: 'SaaS',
-        monthlyCost,
-      },
-    ]);
-  };
-
-  const handleUpdateStackItem = (itemId: string, updates: Partial<StackItem>) => {
-    if (!context) {
-      return;
-    }
-
-    updateStackContext(context.stack.map((item) => (item.id === itemId ? { ...item, ...updates } : item)));
-  };
-
-  const handleRemoveStackItem = (itemId: string) => {
-    if (!context) {
-      return;
-    }
-
-    updateStackContext(context.stack.filter((item) => item.id !== itemId));
-  };
-
-  const handleLoadDemoStack = () => {
-    if (!context) {
-      return;
-    }
-
-    updateStackContext([
-      { id: 'demo-vercel', name: 'Vercel (Pro)', category: 'SaaS', monthlyCost: 150 },
-      { id: 'demo-firebase', name: 'Firebase', category: 'SaaS', monthlyCost: 200 },
-      { id: 'demo-openai', name: 'OpenAI API', category: 'SaaS', monthlyCost: 500 },
-      { id: 'demo-pinecone', name: 'Pinecone Vector DB', category: 'SaaS', monthlyCost: 250 },
-      { id: 'demo-mailchimp', name: 'Mailchimp', category: 'SaaS', monthlyCost: 100 },
-    ]);
-  };
-
-  const handleScan = async () => {
-    if (!context || isScanning) {
-      return;
-    }
-
-    setIsScanning(true);
-    setScanError(null);
-    setTerminalMessages(['Preparing the configured stack components.', 'Requesting analysis from the StackSense backend.']);
-
+  const runScan = async () => {
+    if (!context || isScanning) return;
+    const names = context.stack.map((item) => item.name).filter(Boolean); const monthlySpend = context.stack.reduce((sum, item) => sum + (Number(item.monthlyCost) || 0), 0);
+    if (!names.length) { setScanError('Add at least one stack component before starting a scan.'); return; }
+    setIsScanning(true); setScanError(null); setScanMessages(operatingMode === 'demo' ? ['Preparing demo workspace', 'Loading example source snapshots', 'Matching example changes to stack components', 'Calculating demo impact', 'Creating demo findings'] : ['Starting scan', 'Waiting for analysis', 'Processing results']);
     try {
-      const stack = context.stack.map((item) => item.name).filter(Boolean);
-      const monthlySpend = context.stack.reduce((sum, item) => sum + (Number(item.monthlyCost) || 0), 0);
-      if (stack.length === 0) {
-        throw new ApiRequestError(400, 'EMPTY_STACK', 'Add at least one stack component before starting a scan.', false);
-      }
-      const scanResult = await scanStack(stack, monthlySpend);
-
-      const mappedAlerts: AlertWithStatus[] = scanResult.alerts.map((item, index) => ({
-        id: item.id || `alert-${index}`,
-        title: item.title,
-        description: item.actionDescription,
-        impact:
-          item.impactLevel === 'High'
-            ? ImpactLevel.HIGH
-            : item.impactLevel === 'Medium'
-            ? ImpactLevel.MEDIUM
-            : ImpactLevel.LOW,
-        potentialSavings: Number(item.estimatedSavings) || 0,
-        action: item.actionDescription,
-        category: item.category,
-        timestamp: Date.now(),
-        status: 'active',
-      }));
-
-      setAlerts(mappedAlerts);
-      setMermaidGraph(scanResult.mermaidGraph);
-      setImplementedSavings(0);
-      setOperatingMode(scanResult.meta.mode);
-      setLastScan(new Date(scanResult.meta.generatedAt));
-      setHasPendingRescan(false);
-      setTerminalMessages([
-        `${stack.length} stack component${stack.length === 1 ? '' : 's'} included.`,
-        `${mappedAlerts.length} ${scanResult.meta.mode === 'demo' ? 'demo ' : ''}finding${mappedAlerts.length === 1 ? '' : 's'} returned.`,
-        scanResult.meta.mode === 'demo' ? 'No official sources were scanned; these findings are deterministic demo data.' : 'Live analysis completed successfully.',
-      ]);
+      const result = await scanStack(names, monthlySpend);
+      const mapped: ProductAlert[] = result.alerts.map((item, index) => ({ id: item.id || `finding-${index}`, title: item.title, description: item.actionDescription, impact: (item.impactLevel === 'High' ? Impact.HIGH : item.impactLevel === 'Medium' ? Impact.MEDIUM : Impact.LOW) as ImpactLevel, potentialSavings: Number(item.estimatedSavings) || 0, action: item.actionDescription, category: item.category, timestamp: new Date(result.meta.generatedAt).getTime(), status: 'active' }));
+      setAlerts(mapped); setMermaidGraph(result.mermaidGraph); setImplementedSavings(0); setOperatingMode(result.meta.mode); setLastScan(new Date(result.meta.generatedAt)); setPendingRescan(false); setScanMessages((previous) => [...previous, 'Complete']);
     } catch (error) {
-      if (import.meta.env.DEV) console.error('Scan failed', error);
       let message = 'The backend is unavailable or could not complete the scan. Existing workspace data has been preserved.';
-      if (error instanceof ApiRequestError) {
-        if (error.status === 400) message = error.message;
-        if (error.status === 401 || error.status === 403) message = 'This workspace is not authorized to run a live scan. Check the backend access configuration.';
-        if (error.status === 429) message = 'The scan quota has been reached. Wait before retrying; existing workspace data is unchanged.';
-      }
-      setOperatingMode('degraded');
-      setScanError(message);
-      setTerminalMessages((previous) => [...previous, 'Scan did not complete. No demo findings were substituted.']);
-    } finally {
-      setIsScanning(false);
-    }
+      if (error instanceof ApiRequestError) { if (error.status === 400) message = error.message; else if (error.status === 401 || error.status === 403) message = 'This workspace is not authorized to run a live scan. Check the backend access configuration.'; else if (error.status === 429) message = 'The scan quota has been reached. Wait before retrying; existing workspace data is unchanged.'; }
+      setOperatingMode('degraded'); setScanError(message); setScanMessages((previous) => [...previous, 'Scan did not complete. No demo findings were substituted.']);
+    } finally { setIsScanning(false); }
   };
 
-  const handleImplementAlert = (alertId: string) => {
-    setAlerts((prev) => {
-      const target = prev.find((item) => item.id === alertId);
-      if (!target || target.status === 'resolved') {
-        return prev;
-      }
+  const implement = (id: string) => setAlerts((previous) => { const target = previous.find((item) => item.id === id); if (!target || target.status === 'resolved') return previous; setImplementedSavings((value) => value + target.potentialSavings); return previous.map((item) => item.id === id ? { ...item, status: 'resolved' } : item); });
+  const dismiss = (id: string) => setAlerts((previous) => previous.map((item) => item.id === id ? { ...item, status: 'dismissed' } : item));
+  const ask = async (finding: ProductAlert, question: string, onChunk: (chunk: string) => void, onComplete: () => void, onError: (error: unknown) => void) => askGemini({ id: finding.id, title: finding.title, impact: finding.impact, estimatedSavings: finding.potentialSavings, actionDescription: finding.action }, question, onChunk, onComplete, onError);
+  const generateSummary = () => context ? generateInsights(alerts, context.stack.reduce((sum, item) => sum + item.monthlyCost, 0), implementedSavings) : Promise.resolve('');
+  const generateDueDiligence = () => context ? generateDiligence(alerts, context.stack) : Promise.resolve('');
+  const sync = async (state: BusinessStateItem[]) => { const result = await syncFounders(state, alerts); setFounderSync(result); return result; };
 
-      setImplementedSavings((total) => total + target.potentialSavings);
-      return prev.map((item) => (item.id === alertId ? { ...item, status: 'resolved' } : item));
-    });
-  };
+  if (initializing) return <main className="product-app product-initializing" aria-live="polite">Loading StackSense workspace…</main>;
+  if (!context?.onboarded) return <div className="product-app"><Onboarding onComplete={(value) => { setContext(value); setPendingRescan(true); navigate('/app'); }} /></div>;
 
-  const handleDismissAlert = (alertId: string) => {
-    setAlerts((prev) => prev.map((item) => (item.id === alertId ? { ...item, status: 'dismissed' } : item)));
-  };
+  let view;
+  if (location.pathname === '/app') view = <TodayView alerts={alerts} stack={context.stack} mode={operatingMode} isScanning={isScanning} scanError={scanError} scanMessages={scanMessages} lastScan={lastScan} pendingRescan={pendingRescan} implementedSavings={implementedSavings} onScan={runScan} onOpen={openFinding} onImplement={implement} onDismiss={dismiss} />;
+  else if (location.pathname === '/app/stack') view = <StackView stack={context.stack} pendingRescan={pendingRescan} mermaidGraph={mermaidGraph} onAdd={addStack} onUpdate={updateStackItem} onRemove={removeStack} onLoadDemo={loadDemoStack} />;
+  else if (location.pathname === '/app/changes') view = <ChangesView alerts={alerts} stack={context.stack} mode={operatingMode} onOpen={openFinding} />;
+  else if (location.pathname === '/app/savings') view = <SavingsView alerts={alerts} stack={context.stack} implementedSavings={implementedSavings} />;
+  else if (location.pathname === '/app/reports') view = <ReportsView alerts={alerts} stack={context.stack} mode={operatingMode} implementedSavings={implementedSavings} founderSync={founderSync} onGenerateInsights={generateSummary} onGenerateDigest={() => generateDigest(alerts)} onGenerateDiligence={generateDueDiligence} onSyncFounders={sync} />;
+  else if (location.pathname === '/app/settings') view = <SettingsView mode={operatingMode} onReset={reset} />;
+  else view = <div className="product-page product-not-found"><p className="product-eyebrow">404 · Product view</p><h1>That workspace view doesn’t exist.</h1><p>Use the product navigation or return to Today.</p><Link className="product-button product-button--dark" to="/app">Return to Today</Link></div>;
 
-  const handleAskGemini = async (
-    alert: AlertWithStatus,
-    question: string,
-    onChunk: (chunk: string) => void,
-    onComplete: () => void,
-    onError: (error: unknown) => void
-  ) => {
-    await askGemini(
-      {
-        id: alert.id,
-        title: alert.title,
-        impact: alert.impact,
-        estimatedSavings: alert.potentialSavings,
-        actionDescription: alert.action,
-      },
-      question,
-      onChunk,
-      onComplete,
-      onError
-    );
-  };
-
-  const handleGenerateInsights = async () => {
-    if (!context) {
-      return '';
-    }
-
-    const monthlyCost = context.stack.reduce((sum, item) => sum + (Number(item.monthlyCost) || 0), 0);
-    return generateInsights(alerts, monthlyCost, implementedSavings);
-  };
-
-  const handleGenerateDigest = async () => {
-    return generateDigest(alerts);
-  };
-
-  const handleGenerateDiligence = async () => {
-    if (!context) {
-      return '';
-    }
-
-    return generateDiligence(alerts, context.stack);
-  };
-
-  const handleSyncFounders = async (businessState: BusinessStateItem[]) => {
-    const syncResult = await syncFounders(businessState, alerts);
-    setFounderSync(syncResult);
-    return syncResult;
-  };
-
-  if (isInitializing) {
-    return (
-      <div className="product-app min-h-screen bg-brand-bg flex items-center justify-center">
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-brand-cyan font-mono"
-        >
-          Loading StackSense workspace…
-        </motion.div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="product-app min-h-screen bg-brand-bg text-gray-100 selection:bg-brand-cyan/30">
-      <AnimatePresence mode="wait">
-        {!context || !context.onboarded ? (
-          <motion.div
-            key="onboarding"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <Onboarding onComplete={handleOnboardingComplete} />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="dashboard"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Dashboard
-              context={context}
-              onReset={handleReset}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              isScanning={isScanning}
-              alerts={alerts}
-              operatingMode={operatingMode}
-              scanError={scanError}
-              terminalMessages={terminalMessages}
-              lastScan={lastScan}
-              implementedSavings={implementedSavings}
-              hasPendingRescan={hasPendingRescan}
-              mermaidGraph={mermaidGraph}
-              onScan={handleScan}
-              onAddStackItem={handleAddStackItem}
-              onUpdateStackItem={handleUpdateStackItem}
-              onRemoveStackItem={handleRemoveStackItem}
-              onLoadDemoStack={handleLoadDemoStack}
-              onImplementAlert={handleImplementAlert}
-              onDismissAlert={handleDismissAlert}
-              onAskGemini={handleAskGemini}
-              onGenerateInsights={handleGenerateInsights}
-              onGenerateDigest={handleGenerateDigest}
-              onGenerateDiligence={handleGenerateDiligence}
-              founderSync={founderSync}
-              onSyncFounders={handleSyncFounders}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+  return <div className="product-app"><ProductShell mode={operatingMode} panel={selectedFinding ? <EvidencePanel finding={selectedFinding} stack={context.stack} mode={operatingMode} onClose={closeFinding} onImplement={() => implement(selectedFinding.id)} onDismiss={() => { dismiss(selectedFinding.id); closeFinding(); }} onAsk={(question, onChunk, onDone, onError) => ask(selectedFinding, question, onChunk, onDone, onError)} /> : undefined}>{view}</ProductShell></div>;
 }

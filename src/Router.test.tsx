@@ -3,59 +3,28 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AppRouter from './Router';
 
-function renderRoute(path: string) {
-  return render(<MemoryRouter initialEntries={[path]}><AppRouter /></MemoryRouter>);
-}
+const demoContext = { onboarded: true, stack: [{ id: 'demo-api', name: 'Example API', category: 'API', monthlyCost: 100 }], monthlyBudget: 1000, mainFocus: 'Cost efficiency', riskTolerance: 'medium' };
+const scanPayload = { data: { alerts: [{ id: 'demo-pricing', title: 'Example pricing change affecting Example API', impactLevel: 'Medium', estimatedSavings: 10, actionDescription: 'Review the example assumptions.', category: 'FinOps' }], mermaidGraph: '' }, meta: { mode: 'demo', generatedAt: '2026-09-25T10:00:00.000Z' } };
 
-const demoContext = {
-  onboarded: true,
-  stack: [{ id: 'demo-api', name: 'Example API', category: 'API', monthlyCost: 100 }],
-  monthlyBudget: 1000,
-  mainFocus: 'Cost Efficiency',
-  riskTolerance: 'medium',
-};
+function renderRoute(path: string) { return render(<MemoryRouter initialEntries={[path]}><AppRouter /></MemoryRouter>); }
+function seedWorkspace() { localStorage.setItem('stacksense_user_context', JSON.stringify(demoContext)); }
+function mockDemoScan() { vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => scanPayload })); }
 
-describe('application routes', () => {
-  afterEach(() => vi.unstubAllGlobals());
+describe('application routes and redesigned product workspace', () => {
+  afterEach(() => { vi.unstubAllGlobals(); localStorage.clear(); });
 
-  it('renders the public landing page at /', () => {
-    renderRoute('/');
-    expect(screen.getByRole('heading', { name: /know what changed/i })).toBeInTheDocument();
-  });
-
-  it('renders the product application at /app', async () => {
-    renderRoute('/app');
-    expect(await screen.findByRole('heading', { name: /stacksense config/i })).toBeInTheDocument();
-  });
-
-  it('navigates from the landing CTA to /app', async () => {
-    renderRoute('/');
-    fireEvent.click(screen.getByRole('link', { name: 'Explore the demo' }));
-    expect(await screen.findByRole('heading', { name: /stacksense config/i })).toBeInTheDocument();
-  });
-
-  it('renders a friendly not-found state', () => {
-    renderRoute('/missing');
-    expect(screen.getByRole('heading', { name: /this source.*doesn't exist/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /back to landing page/i })).toHaveAttribute('href', '/');
-  });
-
-  it('visibly labels demo mode', async () => {
-    localStorage.setItem('stacksense_user_context', JSON.stringify(demoContext));
-    renderRoute('/app');
-    expect(await screen.findAllByText(/demo workspace/i)).not.toHaveLength(0);
-  });
-
-  it('shows a degraded error without substituting demo findings after a live failure', async () => {
-    localStorage.setItem('stacksense_user_context', JSON.stringify(demoContext));
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: async () => ({ error: { code: 'PROVIDER_UNAVAILABLE', message: 'Live scanning is unavailable.', retryable: true } }),
-    }));
-    renderRoute('/app');
-    fireEvent.click(await screen.findByRole('button', { name: /scan now/i }));
-    expect(await screen.findByRole('heading', { name: /scan unavailable/i })).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText(/example pricing change affecting/i)).not.toBeInTheDocument());
-  });
+  it('preserves the public landing page at /', () => { renderRoute('/'); expect(screen.getByRole('heading', { name: /know what changed/i })).toBeInTheDocument(); });
+  it('renders redesigned onboarding for a first-use /app workspace', async () => { renderRoute('/app'); expect(await screen.findByRole('heading', { name: /configure what matters/i }, { timeout: 3000 })).toBeInTheDocument(); expect(screen.getByText(/demo mode/i)).toBeInTheDocument(); });
+  it('navigates from the landing CTA to product onboarding', async () => { renderRoute('/'); fireEvent.click(screen.getByRole('link', { name: 'Explore the demo' })); expect(await screen.findByRole('heading', { name: /configure what matters/i }, { timeout: 3000 })).toBeInTheDocument(); });
+  it('renders Today and exposes its active navigation item', async () => { seedWorkspace(); renderRoute('/app'); expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument(); expect(screen.getAllByRole('link', { name: 'Today' })[0]).toHaveAttribute('aria-current', 'page'); });
+  it.each([['Stack','Your stack'],['Changes','Changes'],['Savings','Savings'],['Reports','Reports'],['Settings','Settings']])('navigates to %s', async (label, heading) => { seedWorkspace(); renderRoute('/app'); fireEvent.click((await screen.findAllByRole('link', { name: label }))[0]); expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument(); });
+  it('opens and closes a shareable finding evidence panel', async () => { seedWorkspace(); mockDemoScan(); renderRoute('/app'); fireEvent.click(await screen.findByRole('button', { name: /run scan/i })); fireEvent.click(await screen.findByRole('button', { name: /review evidence/i })); expect(await screen.findByRole('dialog', { name: /inspect impact/i })).toBeInTheDocument(); expect(screen.getByText(/did not query or capture an official source/i)).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: /close evidence panel/i })); await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument()); });
+  it('visibly identifies demo findings', async () => { seedWorkspace(); mockDemoScan(); renderRoute('/app'); fireEvent.click(await screen.findByRole('button', { name: /run scan/i })); expect(await screen.findByText('Demo finding')).toBeInTheDocument(); expect(screen.getByText(/simulated evidence.*no official source/i)).toBeInTheDocument(); });
+  it('never substitutes demo findings after a live failure', async () => { seedWorkspace(); vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({ error: { code: 'PROVIDER_UNAVAILABLE', message: 'Live scanning is unavailable.', retryable: true } }) })); renderRoute('/app'); fireEvent.click(await screen.findByRole('button', { name: /run scan/i })); expect(await screen.findByRole('heading', { name: /scan unavailable/i })).toBeInTheDocument(); expect(screen.queryByText(/example pricing change affecting/i)).not.toBeInTheDocument(); });
+  it('supports stack add, edit, and remove and marks rescan required', async () => { seedWorkspace(); vi.spyOn(window, 'confirm').mockReturnValue(true); renderRoute('/app/stack'); fireEvent.click(await screen.findByRole('button', { name: /add component/i })); fireEvent.change(screen.getByLabelText(/product or vendor/i), { target: { value: 'Example Queue' } }); fireEvent.change(screen.getByLabelText(/monthly cost/i), { target: { value: '75' } }); fireEvent.click(screen.getAllByRole('button', { name: /add component/i }).at(-1)!); expect(await screen.findByText('Example Queue')).toBeInTheDocument(); expect(screen.getByText(/rescan required/i)).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: /edit example queue/i })); fireEvent.change(screen.getByLabelText(/example queue name/i), { target: { value: 'Example Jobs' } }); expect(screen.getByDisplayValue('Example Jobs')).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: /remove example jobs/i })); expect(screen.queryByText('Example Jobs')).not.toBeInTheDocument(); });
+  it('distinguishes projected, implemented, and verified savings', async () => { seedWorkspace(); mockDemoScan(); renderRoute('/app'); fireEvent.click(await screen.findByRole('button', { name: /run scan/i })); fireEvent.click(await screen.findByRole('button', { name: /mark implemented/i })); fireEvent.click(screen.getAllByRole('link', { name: 'Savings' })[0]); expect(await screen.findByRole('heading', { name: 'Savings' })).toBeInTheDocument(); expect(screen.getAllByText(/session implemented/i).length).toBeGreaterThan(0); expect(screen.getAllByText(/verified savings/i).length).toBeGreaterThan(0); expect(screen.getByText(/verification unavailable/i)).toBeInTheDocument(); });
+  it('keeps Reports and Founder Sync reachable', async () => { seedWorkspace(); renderRoute('/app/reports'); expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument(); fireEvent.click(screen.getByRole('tab', { name: 'Founder Sync' })); expect(screen.getByRole('heading', { name: 'Founder Sync' })).toBeInTheDocument(); });
+  it('opens and closes mobile navigation accessibly', async () => { seedWorkspace(); renderRoute('/app'); fireEvent.click(await screen.findByRole('button', { name: /open product navigation/i })); expect(screen.getByRole('dialog', { name: /product navigation/i })).toBeInTheDocument(); fireEvent.keyDown(document, { key: 'Escape' }); await waitFor(() => expect(screen.queryByRole('dialog', { name: /product navigation/i })).not.toBeInTheDocument()); });
+  it('resolves unknown product paths predictably', async () => { seedWorkspace(); renderRoute('/app/unknown'); expect(await screen.findByRole('heading', { name: /workspace view doesn’t exist/i })).toBeInTheDocument(); expect(screen.getByRole('link', { name: /return to today/i })).toHaveAttribute('href', '/app'); });
+  it('renders a friendly global not-found state', () => { renderRoute('/missing'); expect(screen.getByRole('heading', { name: /this source.*doesn't exist/i })).toBeInTheDocument(); });
 });
