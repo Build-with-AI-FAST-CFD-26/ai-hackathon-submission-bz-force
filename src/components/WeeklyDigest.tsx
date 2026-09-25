@@ -38,7 +38,7 @@ export default function WeeklyDigest({ alerts, onGenerateDigest }: WeeklyDigestP
             </div>
             <div>
               <h2 className="text-xl font-bold">Weekly Digest</h2>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Executive summary for Paul</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Executive summary for the founder workspace</p>
             </div>
           </div>
           <p className="text-sm text-gray-400 max-w-2xl">
@@ -58,7 +58,7 @@ export default function WeeklyDigest({ alerts, onGenerateDigest }: WeeklyDigestP
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard label="Alerts in Digest" value={String(alerts.length)} />
         <StatCard label="Status" value="Ready" />
-        <StatCard label="Audience" value="Paul / CEO" />
+        <StatCard label="Audience" value="Founder team" />
       </div>
 
       <motion.div

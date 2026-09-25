@@ -2,16 +2,17 @@ import { lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Zap, 
-  Terminal as TerminalIcon, 
+  ListChecks,
   LayoutDashboard, 
-  Settings, 
-  LogOut, 
   RefreshCw,
-  TrendingUp,
   AlertTriangle,
-  Info
+  Layers3,
+  ArrowLeft,
+  WifiOff
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { UserContext, Alert, ImpactLevel, StackItem, DashboardTab, FounderSyncResult, BusinessStateItem } from '../types';
+import type { OperatingMode } from '../config/operatingMode';
 import Sidebar from './Sidebar';
 import TerminalView from './TerminalView';
 import AlertCard from './AlertCard';
@@ -30,7 +31,8 @@ interface DashboardProps {
   onTabChange: (tab: DashboardTab) => void;
   isScanning: boolean;
   alerts: (Alert & { status: 'active' | 'resolved' | 'dismissed' })[];
-  healthScore: number;
+  operatingMode: OperatingMode;
+  scanError: string | null;
   terminalMessages: string[];
   lastScan: Date | null;
   implementedSavings: number;
@@ -64,7 +66,8 @@ export default function Dashboard({
   onTabChange,
   isScanning,
   alerts,
-  healthScore,
+  operatingMode,
+  scanError,
   terminalMessages,
   lastScan,
   implementedSavings,
@@ -85,13 +88,15 @@ export default function Dashboard({
   onSyncFounders,
 }: DashboardProps) {
   const visibleAlerts = alerts.filter((item) => item.status !== 'dismissed');
+  const activeFindings = alerts.filter((item) => item.status === 'active').length;
   const currentMonthlySpend = context.stack.reduce((sum, item) => sum + (Number(item.monthlyCost) || 0), 0);
 
   return (
     <div className="flex h-screen overflow-hidden bg-brand-bg">
       <Sidebar 
         context={context} 
-        healthScore={healthScore} 
+        operatingMode={operatingMode}
+        activeFindingCount={activeFindings}
         onReset={onReset}
         activeTab={activeTab}
         onTabChange={onTabChange}
@@ -100,30 +105,22 @@ export default function Dashboard({
 
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-20 border-b border-brand-border flex items-center justify-between px-8 shrink-0 bg-brand-bg/50 backdrop-blur-xl">
+        <header className="min-h-20 border-b border-brand-border flex items-center justify-between gap-4 px-4 md:px-8 py-3 shrink-0 bg-brand-bg/50 backdrop-blur-xl">
           <div className="flex items-center gap-4">
             <div className="p-2 bg-brand-cyan/10 rounded-lg">
               <LayoutDashboard className="text-brand-cyan w-5 h-5" />
             </div>
             <div>
-              <h1 className="font-bold tracking-tight">Technical Intelligence</h1>
-              <p className="text-xs text-gray-500 font-mono">
-                {lastScan ? `LAST_SYNC: ${lastScan.toLocaleTimeString()}` : 'WAITING_FOR_INITIAL_SCAN'}
+              <h1 className="font-display text-xl tracking-normal">TECHNICAL INTELLIGENCE</h1>
+              <p className="text-xs text-gray-400">
+                {lastScan ? `Last successful scan ${lastScan.toLocaleTimeString()}` : 'No successful scan yet'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {[1,2,3].map(i => (
-                  <div key={i} className="w-6 h-6 rounded-full border border-brand-bg bg-brand-border flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand-cyan animate-pulse" />
-                  </div>
-                ))}
-              </div>
-              <span className="text-xs text-gray-400 font-mono">3_NODES_UP</span>
-            </div>
+          <div className="flex items-center gap-3 md:gap-6">
+            <Link to="/" className="hidden sm:flex min-h-11 items-center gap-2 text-xs font-bold text-gray-300 hover:text-brand-cyan"><ArrowLeft className="w-4 h-4" /> Landing page</Link>
+            <span className={cn('hidden md:inline-flex px-3 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border', operatingMode === 'demo' ? 'bg-brand-amber/10 border-brand-amber/30 text-brand-amber' : operatingMode === 'live' ? 'bg-emerald-400/10 border-emerald-400/30 text-emerald-300' : 'bg-red-400/10 border-red-400/30 text-red-300')}>{operatingMode} workspace</span>
 
             <button 
               onClick={onScan}
@@ -145,7 +142,16 @@ export default function Dashboard({
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+          <div className="lg:hidden flex flex-wrap items-center gap-3">
+            <Link to="/" className="min-h-11 px-4 inline-flex items-center gap-2 rounded-lg border border-brand-border text-sm"><ArrowLeft className="w-4 h-4" /> Landing</Link>
+            <label className="sr-only" htmlFor="mobile-product-nav">Product section</label>
+            <select id="mobile-product-nav" value={activeTab} onChange={(event) => onTabChange(event.target.value as DashboardTab)} className="min-h-11 flex-1 bg-brand-card border border-brand-border rounded-lg px-3 text-sm">
+              <option value="overview">Today</option><option value="stack">Stack</option><option value="runway">Savings</option><option value="architecture">Changes</option><option value="insights">Reports</option><option value="digest">Weekly digest</option>
+            </select>
+            <span className={cn('px-3 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border', operatingMode === 'demo' ? 'border-brand-amber/30 text-brand-amber' : operatingMode === 'live' ? 'border-emerald-400/30 text-emerald-300' : 'border-red-400/30 text-red-300')}>{operatingMode}</span>
+          </div>
+          {scanError && <section role="alert" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border border-red-400/30 bg-red-400/10"><div className="flex items-start gap-3"><WifiOff className="w-5 h-5 text-red-300 shrink-0" /><div><h2 className="font-bold">Scan unavailable</h2><p className="text-sm text-gray-300 mt-1">{scanError}</p></div></div><button onClick={onScan} disabled={isScanning} className="min-h-11 px-5 rounded-lg bg-white text-brand-bg font-bold">Retry scan</button></section>}
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
               <motion.div
@@ -157,11 +163,11 @@ export default function Dashboard({
                 className="space-y-8"
               >
                 <div className="grid grid-cols-12 gap-8">
-                  <div className="col-span-12 lg:col-span-5 bg-black rounded-2xl border border-brand-border overflow-hidden h-80 flex flex-col">
+                  <div className="col-span-12 lg:col-span-5 bg-brand-card rounded-2xl border border-brand-border overflow-hidden h-80 flex flex-col">
                     <div className="flex items-center justify-between px-4 py-2 bg-brand-card border-b border-brand-border">
                       <div className="flex items-center gap-2">
-                        <TerminalIcon className="w-3.5 h-3.5 text-gray-500" />
-                        <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Live Scan Engine</span>
+                        <ListChecks className="w-3.5 h-3.5 text-brand-cyan" />
+                        <span className="text-[10px] text-gray-400 uppercase tracking-widest">Scan activity</span>
                       </div>
                       <div className="flex gap-1.5">
                         <div className="w-2 h-2 rounded-full bg-red-900/40" />
@@ -172,47 +178,34 @@ export default function Dashboard({
                     <TerminalView messages={terminalMessages} />
                   </div>
 
-                  <div className="col-span-12 lg:col-span-7 grid grid-cols-2 gap-6 h-80">
+                  <div className="col-span-12 lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6 min-h-80">
                     <div className="bg-brand-card rounded-2xl border border-brand-border p-6 flex flex-col justify-between">
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">Implemented Savings</span>
-                          <TrendingUp className="text-brand-cyan w-4 h-4" />
+                          <span className="text-xs text-gray-400 uppercase tracking-widest">Recorded savings</span>
+                          <ListChecks className="text-brand-cyan w-4 h-4" />
                         </div>
                         <div className="text-4xl font-bold text-brand-cyan">${implementedSavings.toLocaleString()}</div>
-                        <div className="text-xs text-gray-400 mt-1 uppercase font-mono tracking-tighter">EST_MONTHLY_REDUCTION</div>
+                        <div className="text-xs text-gray-400 mt-1">User-recorded monthly amount</div>
                       </div>
                       <div className="pt-4 border-t border-brand-border">
-                        <div className="flex justify-between text-xs mb-2 text-gray-500">
-                          <span>PROGRESS_TO_EFFICIENCY_GOAL</span>
-                          <span>12%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-brand-bg rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-full bg-brand-cyan shadow-[0_0_10px_rgba(0,245,255,0.5)]"
-                            initial={{ width: 0 }}
-                            animate={{ width: '12%' }}
-                          />
-                        </div>
+                        <div className="flex justify-between text-xs text-gray-400"><span>Findings requiring review</span><strong className="text-white">{activeFindings}</strong></div>
                       </div>
                     </div>
 
                     <div className="bg-brand-card rounded-2xl border border-brand-border p-6 flex flex-col justify-between relative overflow-hidden group">
                       <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <RefreshCw className="w-32 h-32 text-brand-cyan rotate-12" />
+                        <Layers3 className="w-32 h-32 text-brand-cyan rotate-12" />
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">Runway Impact</span>
-                          <Info className="text-gray-500 w-4 h-4" />
+                          <span className="text-xs text-gray-400 uppercase tracking-widest">Configured stack</span>
+                          <Layers3 className="text-gray-500 w-4 h-4" />
                         </div>
-                        <div className="text-4xl font-bold text-brand-amber">+{(implementedSavings / (context.monthlyBudget || 1)).toFixed(1)} mo</div>
-                        <div className="text-xs text-gray-400 mt-1 uppercase font-mono tracking-tighter">PROJECTED_EXTENSION</div>
+                        <div className="text-4xl font-bold text-brand-amber">{context.stack.length}</div>
+                        <div className="text-xs text-gray-400 mt-1">Stack components</div>
                       </div>
-                      <div className="text-xs text-brand-amber/80 font-mono leading-relaxed">
-                        // OPTIMIZING_CURRENT_BURN_RATE<br />
-                        // INJECTING_${implementedSavings}_TO_RESERVES
-                      </div>
+                      <div className="text-xs text-brand-amber/80 leading-relaxed">Stated monthly spend: ${currentMonthlySpend.toLocaleString()}<br />Mode: {operatingMode}</div>
                     </div>
                   </div>
                 </div>
@@ -240,6 +233,7 @@ export default function Dashboard({
                               alert={alert}
                               index={i}
                               stack={context.stack}
+                              isDemo={operatingMode === 'demo'}
                               onImplement={() => onImplementAlert(alert.id)}
                               onDismiss={() => onDismissAlert(alert.id)}
                               onAskGemini={onAskGemini}
@@ -253,8 +247,8 @@ export default function Dashboard({
                       <div className="w-16 h-16 rounded-full bg-brand-border flex items-center justify-center mb-4">
                         <RefreshCw className="text-gray-500 w-8 h-8" />
                       </div>
-                      <h3 className="font-bold text-lg mb-2">No Active Intel</h3>
-                      <p className="text-sm max-w-xs text-gray-500">Run a deep scan to discover cost and architectural optimization vectors.</p>
+                      <h3 className="font-bold text-lg mb-2">No findings yet</h3>
+                      <p className="text-sm max-w-xs text-gray-400">Run a scan after configuring your stack. If no relevant findings are returned, this view will remain intentionally empty.</p>
                     </div>
                   )}
                 </section>

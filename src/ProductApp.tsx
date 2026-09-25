@@ -6,9 +6,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Alert, BusinessStateItem, DashboardTab, FounderSyncResult, ImpactLevel, StackItem, UserContext } from './types';
+import { configuredOperatingMode, type OperatingMode } from './config/operatingMode';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
-import { askGemini, generateDigest, generateDiligence, generateInsights, scanStack, syncFounders } from './services/api';
+import { ApiRequestError, askGemini, generateDigest, generateDiligence, generateInsights, scanStack, syncFounders } from './services/api';
+import './legacy-product.css';
 
 const STORAGE_KEY = 'stacksense_user_context';
 
@@ -21,8 +23,9 @@ export default function ProductApp() {
   const [isScanning, setIsScanning] = useState(false);
   const [alerts, setAlerts] = useState<AlertWithStatus[]>([]);
   const [mermaidGraph, setMermaidGraph] = useState('');
-  const [healthScore, setHealthScore] = useState(78);
-  const [terminalMessages, setTerminalMessages] = useState<string[]>(['[SYSTEM] AUTH_SUCCESS', '[SYSTEM] MONITORING_ACTIVE']);
+  const [operatingMode, setOperatingMode] = useState<OperatingMode>(configuredOperatingMode);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [terminalMessages, setTerminalMessages] = useState<string[]>(['No scan has been run in this workspace.']);
   const [lastScan, setLastScan] = useState<Date | null>(null);
   const [implementedSavings, setImplementedSavings] = useState(0);
   const [hasPendingRescan, setHasPendingRescan] = useState(false);
@@ -56,11 +59,13 @@ export default function ProductApp() {
     setContext(null);
     setAlerts([]);
     setMermaidGraph('');
-    setTerminalMessages(['[SYSTEM] AUTH_SUCCESS', '[SYSTEM] MONITORING_ACTIVE']);
+    setTerminalMessages(['No scan has been run in this workspace.']);
     setLastScan(null);
     setImplementedSavings(0);
     setHasPendingRescan(false);
     setActiveTab('overview');
+    setScanError(null);
+    setOperatingMode(configuredOperatingMode);
   };
 
   const updateStackContext = (updatedStack: StackItem[]) => {
@@ -124,35 +129,21 @@ export default function ProductApp() {
     ]);
   };
 
-  const addTerminalMessage = (message: string) => {
-    setTerminalMessages((prev) => [...prev.slice(-15), `[${new Date().toLocaleTimeString()}] ${message}`]);
-  };
-
   const handleScan = async () => {
     if (!context || isScanning) {
       return;
     }
 
     setIsScanning(true);
-    setTerminalMessages([]);
-    addTerminalMessage('INITIATING_DEEP_STACK_SCAN');
-
-    const steps = [
-      'RESOLVING_DEPENDENCY_GRAPH...',
-      'EVALUATING_MODEL_LATENCY...',
-      'ANALYZING_COST_VECTORS...',
-      'IDENTIFYING_DEPRECATION_RISKS...',
-      'CALCULATING_RUNWAY_GAINS...',
-    ];
-
-    for (const step of steps) {
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      addTerminalMessage(step);
-    }
+    setScanError(null);
+    setTerminalMessages(['Preparing the configured stack components.', 'Requesting analysis from the StackSense backend.']);
 
     try {
       const stack = context.stack.map((item) => item.name).filter(Boolean);
       const monthlySpend = context.stack.reduce((sum, item) => sum + (Number(item.monthlyCost) || 0), 0);
+      if (stack.length === 0) {
+        throw new ApiRequestError(400, 'EMPTY_STACK', 'Add at least one stack component before starting a scan.', false);
+      }
       const scanResult = await scanStack(stack, monthlySpend);
 
       const mappedAlerts: AlertWithStatus[] = scanResult.alerts.map((item, index) => ({
@@ -175,13 +166,25 @@ export default function ProductApp() {
       setAlerts(mappedAlerts);
       setMermaidGraph(scanResult.mermaidGraph);
       setImplementedSavings(0);
-      setHealthScore(Math.max(55, 92 - mappedAlerts.length * 4));
-      setLastScan(new Date());
+      setOperatingMode(scanResult.meta.mode);
+      setLastScan(new Date(scanResult.meta.generatedAt));
       setHasPendingRescan(false);
-      addTerminalMessage(`SCAN_COMPLETE: ${mappedAlerts.length} OPTIMIZATION_POINTS_IDENTIFIED`);
+      setTerminalMessages([
+        `${stack.length} stack component${stack.length === 1 ? '' : 's'} included.`,
+        `${mappedAlerts.length} ${scanResult.meta.mode === 'demo' ? 'demo ' : ''}finding${mappedAlerts.length === 1 ? '' : 's'} returned.`,
+        scanResult.meta.mode === 'demo' ? 'No official sources were scanned; these findings are deterministic demo data.' : 'Live analysis completed successfully.',
+      ]);
     } catch (error) {
-      console.error('Scan failed', error);
-      addTerminalMessage('SCAN_FAILED: BACKEND_OR_MODEL_ERROR');
+      if (import.meta.env.DEV) console.error('Scan failed', error);
+      let message = 'The backend is unavailable or could not complete the scan. Existing workspace data has been preserved.';
+      if (error instanceof ApiRequestError) {
+        if (error.status === 400) message = error.message;
+        if (error.status === 401 || error.status === 403) message = 'This workspace is not authorized to run a live scan. Check the backend access configuration.';
+        if (error.status === 429) message = 'The scan quota has been reached. Wait before retrying; existing workspace data is unchanged.';
+      }
+      setOperatingMode('degraded');
+      setScanError(message);
+      setTerminalMessages((previous) => [...previous, 'Scan did not complete. No demo findings were substituted.']);
     } finally {
       setIsScanning(false);
     }
@@ -254,20 +257,20 @@ export default function ProductApp() {
 
   if (isInitializing) {
     return (
-      <div className="min-h-screen bg-brand-bg flex items-center justify-center">
+      <div className="product-app min-h-screen bg-brand-bg flex items-center justify-center">
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="text-brand-cyan font-mono"
         >
-          INITIALIZING_STACKSENSE_CORE...
+          Loading StackSense workspace…
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-bg text-gray-100 selection:bg-brand-cyan/30">
+    <div className="product-app min-h-screen bg-brand-bg text-gray-100 selection:bg-brand-cyan/30">
       <AnimatePresence mode="wait">
         {!context || !context.onboarded ? (
           <motion.div
@@ -293,7 +296,8 @@ export default function ProductApp() {
               onTabChange={setActiveTab}
               isScanning={isScanning}
               alerts={alerts}
-              healthScore={healthScore}
+              operatingMode={operatingMode}
+              scanError={scanError}
               terminalMessages={terminalMessages}
               lastScan={lastScan}
               implementedSavings={implementedSavings}

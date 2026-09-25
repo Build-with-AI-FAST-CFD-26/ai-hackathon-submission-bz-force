@@ -8,17 +8,17 @@ interface ArchitectureViewProps {
 }
 
 mermaid.initialize({
-  startOnLoad: true,
+  startOnLoad: false,
   theme: 'dark',
-  securityLevel: 'loose',
+  securityLevel: 'strict',
   themeVariables: {
-    background: '#151921',
-    primaryColor: '#00F5FF',
+    background: '#272727',
+    primaryColor: '#ffe17c',
     primaryTextColor: '#E5E7EB',
-    primaryBorderColor: '#2D333F',
-    lineColor: '#00F5FF',
-    secondaryColor: '#FFB800',
-    tertiaryColor: '#0A0C10',
+    primaryBorderColor: '#b7c6c2',
+    lineColor: '#ffe17c',
+    secondaryColor: '#b7c6c2',
+    tertiaryColor: '#171e19',
   },
 });
 
@@ -49,7 +49,8 @@ export default function ArchitectureView({ mermaidGraph }: ArchitectureViewProps
           containerRef.current.innerHTML = svg;
         }
       } catch (renderError) {
-        setError(renderError instanceof Error ? renderError.message : 'Failed to render architecture diagram.');
+        if (import.meta.env.DEV) console.error('Architecture diagram render failed', renderError);
+        setError('The architecture diagram could not be displayed. Run the scan again or review the stack list instead.');
       }
     }
 
@@ -68,7 +69,7 @@ export default function ArchitectureView({ mermaidGraph }: ArchitectureViewProps
         </div>
         <div>
           <h2 className="text-xl font-bold">Architecture Diagram</h2>
-          <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Generated from the latest StackSense scan</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Available only when returned by the latest successful scan</p>
         </div>
       </div>
 

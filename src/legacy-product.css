@@ -1,24 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Satoshi", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anton", "Arial Narrow", Impact, sans-serif;
+  --font-mono: "Satoshi", Inter, ui-sans-serif, system-ui, sans-serif;
   
-  --color-brand-bg: #0A0C10;
-  --color-brand-card: #151921;
-  --color-brand-cyan: #00F5FF;
-  --color-brand-amber: #FFB800;
-  --color-brand-red: #FF4D4D;
-  --color-brand-border: #2D333F;
+  --color-brand-bg: #171e19;
+  --color-brand-card: #272727;
+  --color-brand-cyan: #ffe17c;
+  --color-brand-amber: #ffe17c;
+  --color-brand-red: #ef6b6b;
+  --color-brand-border: rgba(183, 198, 194, 0.16);
 }
 
-@layer base {
-  body {
-    @apply bg-brand-bg text-gray-100 font-sans;
-  }
-}
+.product-app { min-height: 100vh; background: #171e19; color: #fff; font-family: "Satoshi", Inter, ui-sans-serif, system-ui, sans-serif; }
+.product-app h1,.product-app .font-display { font-family: "Anton", "Arial Narrow", Impact, sans-serif; font-weight: 400; letter-spacing: 0; }
 
 .terminal-cursor::after {
   content: "";

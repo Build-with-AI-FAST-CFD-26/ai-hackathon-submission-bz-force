@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Plus, Trash2, Cpu, DollarSign, Target, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { UserContext, StackItem } from '../types';
 import { cn } from '../lib/utils';
 
@@ -10,10 +11,7 @@ interface OnboardingProps {
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(1);
-  const [stack, setStack] = useState<StackItem[]>([
-    { id: '1', name: 'Gemini 1.5 Pro', category: 'LLM', monthlyCost: 400 },
-    { id: '2', name: 'Firebase', category: 'Backend', monthlyCost: 50 },
-  ]);
+  const [stack, setStack] = useState<StackItem[]>([]);
   const [budget, setBudget] = useState(1000);
   const [focus, setFocus] = useState('Rapid Prototyping');
 
@@ -21,6 +19,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     const id = Math.random().toString(36).substr(2, 9);
     setStack([...stack, { id, name: '', category: 'SaaS', monthlyCost: 0 }]);
   };
+
+  const loadDemoStack = () => setStack([
+    { id: 'demo-api', name: 'Example API', category: 'API', monthlyCost: 500 },
+    { id: 'demo-database', name: 'Example Database', category: 'Database', monthlyCost: 200 },
+  ]);
 
   const removeStackItem = (id: string) => {
     setStack(stack.filter(item => item.id !== id));
@@ -52,6 +55,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   return (
     <div className="max-w-3xl mx-auto px-6 py-20 min-h-screen flex flex-col justify-center">
       <div className="mb-12">
+        <Link to="/" className="inline-flex min-h-11 items-center text-sm text-gray-400 hover:text-brand-cyan mb-8">← Return to landing page</Link>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-lg bg-brand-cyan/20 flex items-center justify-center border border-brand-cyan/30">
             <Cpu className="text-brand-cyan w-6 h-6" />
@@ -78,6 +82,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <Cpu className="w-5 h-5 text-brand-cyan" /> Define Your Core Stack
             </h2>
             <div className="space-y-4">
+              {stack.length === 0 && <div className="rounded-xl border border-dashed border-brand-border p-8 text-center"><h3 className="font-bold">No stack components yet</h3><p className="text-sm text-gray-400 mt-2">Add your first component or load a clearly labelled demo stack.</p><button onClick={loadDemoStack} className="min-h-11 mt-5 px-5 rounded-lg bg-brand-amber text-brand-bg font-bold">Load demo stack</button></div>}
               {stack.map((item) => (
                 <div key={item.id} className="flex gap-4 items-end bg-brand-card p-4 rounded-xl border border-brand-border hover:border-brand-cyan/30 transition-colors">
                   <div className="flex-1 space-y-2">
@@ -119,7 +124,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 onClick={nextStep}
                 className="bg-brand-cyan text-brand-bg font-bold px-8 py-3 rounded-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,245,255,0.3)]"
               >
-                Initialize Subsystems
+                Continue
               </button>
             </div>
           </motion.div>
@@ -178,7 +183,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 onClick={nextStep}
                 className="bg-brand-cyan text-brand-bg font-bold px-8 py-3 rounded-lg hover:scale-105 transition-all shadow-[0_0_20px_rgba(0,245,255,0.3)]"
               >
-                Finalize Configuration
+                Review workspace
               </button>
             </div>
           </motion.div>
@@ -191,16 +196,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
             <h2 className="text-3xl font-bold mb-4">Configuration Complete</h2>
             <p className="text-gray-400 max-w-md mx-auto mb-10">
-              Your stack profile has been synthesized. StackSense is ready to deploy intelligence monitors.
+              Your stack profile is ready. Scans run only when you request them.
             </p>
             <div className="bg-brand-card p-6 rounded-xl border border-brand-border text-left max-w-md mx-auto mb-12 font-mono text-sm space-y-2">
               <div className="flex justify-between border-b border-brand-border pb-2 mb-2">
-                <span className="text-gray-500">SYSTEM_STATUS</span>
-                <span className="text-brand-cyan">READY</span>
+                <span className="text-gray-500">Workspace status</span>
+                <span className="text-brand-cyan">Ready</span>
               </div>
               <p><span className="text-brand-amber text-xs">STK_01</span> {stack.length} components detected</p>
               <p><span className="text-brand-amber text-xs">BDG_01</span> Target focus: {focus}</p>
-              <p><span className="text-brand-amber text-xs">RQK_01</span> Continuous scan enabled</p>
+              <p><span className="text-brand-amber text-xs">SCAN</span> Manual scan ready</p>
             </div>
             <button 
               onClick={handleSubmit}

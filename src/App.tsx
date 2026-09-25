@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ArrowDownRight, ArrowRight, BadgeCheck, BellRing, BookOpenText, Check, CheckCircle2,
   ChevronDown, CircleDollarSign, Clock3, Code2, FileCheck2, FileText, Gauge, GitBranch,
@@ -54,8 +55,8 @@ function Header() {
           {navItems.map(([label, href]) => <a href={href} key={href}>{label}</a>)}
         </nav>
         <div className="header-actions">
-          <a className="signin-link" href="#early-access">Sign in</a>
-          <a className="button button--dark button--header" href="#product">Explore demo</a>
+          <Link className="signin-link" to="/app">Sign in</Link>
+          <Link className="button button--dark button--header" to="/app">Explore demo</Link>
           <button className="menu-button" type="button" aria-label={open ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={open} aria-controls="mobile-navigation" onClick={() => setOpen(value => !value)}>
             {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
           </button>
@@ -63,7 +64,7 @@ function Header() {
       </div>
       {open && <nav className="mobile-nav" id="mobile-navigation" aria-label="Mobile navigation">
         {navItems.map(([label, href]) => <a href={href} key={href} onClick={() => setOpen(false)}>{label}<ArrowDownRight aria-hidden="true" /></a>)}
-        <a href="#early-access" onClick={() => setOpen(false)}>Sign in<ArrowDownRight aria-hidden="true" /></a>
+        <Link to="/app" onClick={() => setOpen(false)}>Sign in<ArrowDownRight aria-hidden="true" /></Link>
       </nav>}
     </header>
   );
@@ -76,7 +77,7 @@ function Hero() {
       <h1 id="hero-title">KNOW WHAT <span className="highlight-word">CHANGED.</span><br />BEFORE IT COSTS YOU.</h1>
       <p className="hero-copy">StackSense watches official vendor sources, matches meaningful changes to your actual stack, and turns cited evidence into a prioritized action your team can inspect.</p>
       <div className="hero-actions">
-        <a className="button button--yellow" href="#product">Explore the demo <ArrowRight aria-hidden="true" /></a>
+        <Link className="button button--yellow" to="/app">Explore the demo <ArrowRight aria-hidden="true" /></Link>
         <a className="text-link" href="#evidence">See how evidence works <ArrowDownRight aria-hidden="true" /></a>
       </div>
       <p className="trust-line"><BadgeCheck aria-hidden="true" /> Official sources <span>•</span> Explainable impact <span>•</span> Human-approved actions</p>
@@ -115,7 +116,7 @@ function ProductMockup() {
             <div className="finding-title-row"><div><h4>Example API input price decreased</h4><span className="component-chip"><Code2 aria-hidden="true" /> Example API • Production</span></div><div className="savings-metric"><small>PROJECTED MONTHLY SAVINGS</small><strong>$128</strong><em>DEMO</em></div></div>
             <div className="evidence-excerpt"><div className="quote-mark">“</div><div><span>EVIDENCE EXCERPT · DEMO</span><p>Input pricing changes from <s>$2.50</s> to <mark>$2.00 per 1M tokens</mark>, effective October 1.</p></div></div>
             <div className="source-row"><div className="source-icon"><FileCheck2 aria-hidden="true" /></div><div><strong>Example API — official pricing</strong><span>Captured today at 09:42 • Effective Oct 1</span></div><a href="#evidence-panel">View source <ArrowDownRight aria-hidden="true" /></a></div>
-            <div className="finding-actions"><button type="button">Review evidence</button><button className="primary" type="button">Assign action <ArrowRight aria-hidden="true" /></button><button className="dismiss" type="button">Dismiss</button></div>
+            <div className="finding-actions"><a href="#evidence-panel">Review evidence</a><Link className="primary" to="/app">Open interactive demo <ArrowRight aria-hidden="true" /></Link><button className="dismiss" type="button">Dismiss</button></div>
           </article>
         </main>
         <aside className="evidence-panel" id="evidence-panel" aria-label="Demo evidence and action panel">
@@ -175,14 +176,11 @@ function TrustSection() {
 }
 
 function FinalCta() {
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const submit = (event: React.FormEvent) => { event.preventDefault(); if (email) setSubmitted(true); };
-  return <section className="final-cta" id="early-access" aria-labelledby="cta-title"><div className="cta-watermark" aria-hidden="true">SEE THE CHANGE</div><div className="cta-content"><span className="section-kicker section-kicker--dark">READY WHEN THE SOURCE CHANGES</span><h2 id="cta-title">STOP FINDING<br />OUT TOO LATE.</h2><p>Explore the evidence-first product demo or request early access to help shape StackSense for small technical teams.</p><div className="cta-actions"><a className="button button--dark" href="#product">Explore demo <ArrowRight aria-hidden="true" /></a>{submitted ? <div className="form-success" role="status"><CheckCircle2 aria-hidden="true" /> Request noted for this demo</div> : <form onSubmit={submit}><label className="sr-only" htmlFor="access-email">Work email</label><input id="access-email" type="email" required placeholder="you@company.com" value={email} onChange={event => setEmail(event.target.value)} /><button type="submit">Request access</button></form>}</div><small>Demo form — no data is sent.</small></div></section>;
+  return <section className="final-cta" id="early-access" aria-labelledby="cta-title"><div className="cta-watermark" aria-hidden="true">SEE THE CHANGE</div><div className="cta-content"><span className="section-kicker section-kicker--dark">READY WHEN THE SOURCE CHANGES</span><h2 id="cta-title">STOP FINDING<br />OUT TOO LATE.</h2><p>Explore the evidence-first product demo and see how StackSense turns a sourced change into a reviewable action.</p><div className="cta-actions"><Link className="button button--dark" to="/app">Explore demo <ArrowRight aria-hidden="true" /></Link><a className="button button--outline" href="#evidence">Review the evidence model</a></div><small>The product opens in demo mode by default. Demo data is always labelled.</small></div></section>;
 }
 
 function Footer() {
-  return <footer className="site-footer"><div className="footer-main"><div className="footer-brand"><Wordmark light /><p>Evidence-backed technical stack intelligence for founders and small engineering teams.</p></div><div className="footer-links"><div><strong>PRODUCT</strong><a href="#product">Demo workspace</a><a href="#how-it-works">How it works</a><a href="#use-cases">Use cases</a></div><div><strong>PRINCIPLES</strong><a href="#trust">Trust</a><a href="#roadmap">Roadmap</a><a href="#evidence">Evidence</a></div></div></div><div className="footer-bottom"><p>Built for founders who need the source, not just the summary.</p><span>© {new Date().getFullYear()} StackSense</span></div></footer>;
+  return <footer className="site-footer"><div className="footer-main"><div className="footer-brand"><Wordmark light /><p>Evidence-backed technical stack intelligence for founders and small engineering teams.</p></div><div className="footer-links"><div><strong>PRODUCT</strong><Link to="/app">Demo workspace</Link><a href="#how-it-works">How it works</a><a href="#use-cases">Use cases</a></div><div><strong>PRINCIPLES</strong><a href="#trust">Trust</a><a href="#roadmap">Roadmap</a><a href="#evidence">Evidence</a></div></div></div><div className="footer-bottom"><p>Built for founders who need the source, not just the summary.</p><span>© {new Date().getFullYear()} StackSense</span></div></footer>;
 }
 
 export default function App() {
