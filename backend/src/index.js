@@ -1,592 +1,230 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
 
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 8787;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const VALID_MODES = new Set(['demo', 'live', 'degraded']);
 
-if (!GEMINI_API_KEY) {
-  console.warn(
-    "[WARN] GEMINI_API_KEY is missing. Gemini endpoints will return an error until it is set.",
-  );
+function parseOperatingMode(value, fallback = 'demo') {
+  return VALID_MODES.has(value) ? value : fallback;
 }
 
-app.use(
-  cors({
-    origin: FRONTEND_ORIGIN,
-    credentials: true,
-  }),
-);
-app.use(express.json({ limit: "1mb" }));
-
-let genAI = null;
-if (GEMINI_API_KEY) {
-  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+function meta(mode) {
+  return { mode, generatedAt: new Date().toISOString() };
 }
 
-function getGeminiOrRespond(res) {
-  if (!genAI) {
-    return null;
-  }
-  return genAI;
+function sendSuccess(res, data, mode) {
+  return res.json({ data, meta: meta(mode) });
+}
+
+function sendError(res, status, code, message, retryable, mode = 'degraded') {
+  return res.status(status).json({
+    error: { code, message, retryable },
+    meta: meta(mode),
+  });
 }
 
 function parseJsonSafely(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const cleaned = text
-      .replace(/```json/gi, "")
-      .replace(/```/g, "")
-      .trim();
-    return JSON.parse(cleaned);
-  }
+  const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  return JSON.parse(cleaned);
 }
 
-function buildMockScanResponse(stack, monthlySpend) {
-  const fallbackGraph =
-    "graph TD; Vercel[\"Vercel (Pro)\"] --> Firebase[\"Firebase\"]; Firebase --> OpenAI[\"OpenAI API\"]; OpenAI --> Pinecone[\"Pinecone Vector DB\"]; Pinecone --> Mailchimp[\"Mailchimp\"];";
+function validateScan(body) {
+  const { stack, monthlySpend } = body || {};
+  if (!Array.isArray(stack) || stack.length === 0 || stack.some(item => typeof item !== 'string' || !item.trim())) {
+    return "'stack' must be a non-empty array of non-empty strings.";
+  }
+  if (typeof monthlySpend !== 'number' || !Number.isFinite(monthlySpend) || monthlySpend < 0) {
+    return "'monthlySpend' must be a non-negative number.";
+  }
+  return null;
+}
 
+function demoScan(stack, monthlySpend) {
+  const component = stack[0] || 'Example API';
   return {
     alerts: [
       {
-        id: "mock-alert-1",
-        title: "Drop Vercel Pro for the presentation stack",
-        impactLevel: "High",
-        estimatedSavings: 150,
-        actionDescription:
-          "Move the landing flow and demo surfaces to Firebase Hosting or Cloud Run to remove the Vercel Pro subscription.",
-        category: "FinOps",
+        id: 'demo-pricing-change',
+        title: `Example pricing change affecting ${component}`,
+        impactLevel: 'Medium',
+        estimatedSavings: Math.min(128, Math.round(monthlySpend * 0.1)),
+        actionDescription: 'Review the cited example assumptions before making a product decision.',
+        category: 'FinOps',
+        evidenceState: 'demo',
       },
       {
-        id: "mock-alert-2",
-        title: "Consolidate OpenAI traffic through Vertex AI",
-        impactLevel: "High",
-        estimatedSavings: 500,
-        actionDescription:
-          "Route model calls through Vertex AI so you can standardize billing, reduce vendor sprawl, and simplify policy management.",
-        category: "DevOps",
-      },
-      {
-        id: "mock-alert-3",
-        title: "Migrate Pinecone workloads to pgvector",
-        impactLevel: "Medium",
-        estimatedSavings: 250,
-        actionDescription:
-          "Use Postgres + pgvector for the current demo corpus to reduce infrastructure overhead and make diligence easier.",
-        category: "Security",
+        id: 'demo-deprecation',
+        title: `Example deprecation review for ${component}`,
+        impactLevel: 'Low',
+        estimatedSavings: 0,
+        actionDescription: 'Assign an owner to confirm whether the example deprecation applies to this component.',
+        category: 'DevOps',
+        evidenceState: 'demo',
       },
     ],
-    mermaidGraph: fallbackGraph,
-    meta: {
-      stack,
-      monthlySpend,
-      offlineMode: true,
-    },
+    mermaidGraph: '',
   };
 }
 
-function buildMockInsightsMarkdown(alerts, monthlyCost, implementedSavings) {
-  return [
-    "## Weekly Executive Summary for Paul",
-    "The current stack is pointing to a clear runway win: the biggest immediate savings come from removing the Vercel Pro layer, consolidating model spend, and simplifying the vector search path. Even a partial implementation of these changes turns the burn profile from a scattered set of vendor payments into a much tighter operating plan.",
-    "The main diligence risk is unnecessary tech sprawl. Multiple external services handling core workflow logic creates avoidable questions during fundraising and due diligence, especially when there is a simpler platform path available for hosting, model access, and data retrieval. Cleaning this up reduces the number of things investors can worry about.",
-    "Engineering velocity should improve once the team stops maintaining duplicate infrastructure. A smaller surface area means fewer deployment hops, less cross-service debugging, and faster iteration on product work. In practical terms, the team will spend more time shipping and less time stitching systems together.",
-    "",
-    `*Alerts reviewed:* ${alerts.length}  `,
-    `*Monthly cost:* $${Number(monthlyCost || 0).toLocaleString()}  `,
-    `*Implemented savings:* $${Number(implementedSavings || 0).toLocaleString()}`,
-  ].join("\n\n");
+function demoInsights(alerts, monthlyCost, implementedSavings) {
+  return { markdown: `## Demo founder summary\n\nThis preview contains ${alerts.length} demo findings against $${Number(monthlyCost).toLocaleString()} in stated monthly spend. No savings are verified.\n\nRecorded implemented savings: $${Number(implementedSavings).toLocaleString()}. Review evidence and assumptions before acting.` };
 }
 
-function buildMockDigestMarkdown(alerts) {
-  return [
-    "## Weekly Digest for Paul",
-    "Runway improved this week because the stack now has a clear path to remove expensive overlap in hosting, model usage, and retrieval tooling. The practical takeaway is that the burn curve becomes more predictable once the team standardizes on fewer vendors.",
-    "We also reduced diligence risk by identifying places where third-party tooling can be simplified or eliminated. That matters because investors and YC reviewers tend to read unnecessary infrastructure as future maintenance debt.",
-    "Finally, the team should move faster after the stack is tightened. Fewer vendors means fewer moving parts, which means quicker deployments, less debugging, and more product time.",
-    "",
-    `*Alerts summarized:* ${alerts.length}`,
-  ].join("\n\n");
+function demoDigest(alerts) {
+  return { markdown: `## Demo weekly digest\n\n${alerts.length} example findings are ready for review. This digest is seeded demo content and does not represent a live source scan.` };
 }
 
-function buildMockDiligenceMarkdown(alerts, stack) {
-  const stackList = Array.isArray(stack) && stack.length > 0 ? stack.join(', ') : 'the current demo stack';
-
-  return [
-    "# Technical Due Diligence",
-    "## 1. Current Architecture Choices",
-    `Our current architecture centers on ${stackList}. For the product and the live demo, this keeps the system intentionally lean while still allowing us to move quickly on feature validation, customer conversations, and integration work. We are using a small set of managed services so we can spend our time shipping product rather than operating infrastructure.`,
-    "## 2. Cost Management & FinOps",
-    `The present alert set contains ${alerts.length} active optimization signals. The main focus is to reduce duplicated spend, keep hosting and inference costs visible, and prioritize changes that directly improve runway. The operating goal is to maintain a simple cost structure that can scale without introducing billing surprises or hidden vendor sprawl.`,
-    "## 3. Scalability & Technical Debt Mitigation",
-    "We are actively reducing technical debt by removing unnecessary platform dependencies, consolidating core workloads, and favoring managed primitives where they improve reliability. This lowers diligence risk because the architecture becomes easier to explain, easier to maintain, and easier to scale as customer demand grows.",
-  ].join("\n\n");
+function demoDiligence(alerts, stack) {
+  return { markdown: `# Demo technical brief\n\n## Current architecture\n${stack.length} stack components are configured.\n\n## Findings\n${alerts.length} demo findings require human review.\n\n## Evidence boundary\nThis preview is not based on a live source capture.` };
 }
 
-function buildMockFounderSyncResponse() {
+function demoSync() {
   return {
-    paulActions: [
-      "PRIORITY: Finish the Mailchimp welcome sequence so new inbound leads are nurtured automatically.",
-      "PRIORITY: Re-engage Acme Corp with a concrete demo follow-up window and owner.",
-      "PRIORITY: Lock YC application milestones now to avoid Friday submission risk.",
-    ],
-    coordinationAlerts: [
-      "ALIGNMENT WARNING: Paul promised a new Vector Search feature next week, but Sam's stack scan flagged Pinecone for a critical migration path. Commit timeline after migration plan is approved.",
-    ],
+    paulActions: ['DEMO: Review the highest-priority finding and assign an owner.'],
+    coordinationAlerts: ['DEMO: Confirm evidence and timing before making an external commitment.'],
   };
 }
 
-async function writeMockSseResponse(res, text) {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache, no-transform");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders?.();
-
-  const chunks = text.match(/.{1,120}/g) || [text];
-  for (const chunk of chunks) {
-    res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
-    await new Promise((resolve) => setTimeout(resolve, 40));
-  }
-
-  res.write("event: done\ndata: [DONE]\n\n");
-  res.end();
+function createGemini(apiKey) {
+  return apiKey ? new GoogleGenerativeAI(apiKey) : null;
 }
 
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "stacksense-backend" });
-});
+function createApp(options = {}) {
+  const app = express();
+  const mode = parseOperatingMode(options.mode ?? process.env.STACKSENSE_MODE, 'demo');
+  const frontendOrigin = options.frontendOrigin ?? process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000';
+  const genAI = options.genAI === undefined ? createGemini(process.env.GEMINI_API_KEY) : options.genAI;
 
-app.post("/api/scan", async (req, res) => {
-  try {
-    const client = getGeminiOrRespond(res);
-    if (!client) {
-      const mockResponse = buildMockScanResponse(req.body?.stack || [], Number(req.body?.monthlySpend) || 0);
-      return res.json(mockResponse);
-    }
+  app.use(cors({ origin: frontendOrigin, credentials: true }));
+  app.use(express.json({ limit: '1mb' }));
 
-    const { stack, monthlySpend } = req.body || {};
+  app.get('/health', (_req, res) => sendSuccess(res, { status: mode === 'live' && !genAI ? 'degraded' : 'ok', service: 'stacksense-backend' }, mode === 'live' && !genAI ? 'degraded' : mode));
 
-    if (
-      !Array.isArray(stack) ||
-      stack.some((item) => typeof item !== "string")
-    ) {
-      return res.status(400).json({
-        error: "Invalid request body. 'stack' must be an array of strings.",
-      });
-    }
+  app.post('/api/scan', async (req, res) => {
+    const validationError = validateScan(req.body);
+    if (validationError) return sendError(res, 400, 'INVALID_SCAN_REQUEST', validationError, false, mode);
+    const { stack, monthlySpend } = req.body;
 
-    if (
-      typeof monthlySpend !== "number" ||
-      Number.isNaN(monthlySpend) ||
-      monthlySpend < 0
-    ) {
-      return res.status(400).json({
-        error:
-          "Invalid request body. 'monthlySpend' must be a non-negative number.",
-      });
-    }
+    if (mode === 'demo') return sendSuccess(res, demoScan(stack, monthlySpend), 'demo');
+    if (mode === 'degraded' || !genAI) return sendError(res, 503, 'PROVIDER_UNAVAILABLE', 'Live scanning is temporarily unavailable. Your existing workspace data is unchanged.', true);
 
-    const model = client.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: SchemaType.OBJECT,
-          properties: {
-            alerts: {
-              type: SchemaType.ARRAY,
-              items: {
-                type: SchemaType.OBJECT,
-                properties: {
-                  id: { type: SchemaType.STRING },
-                  title: { type: SchemaType.STRING },
-                  impactLevel: {
-                    type: SchemaType.STRING,
-                    enum: ["High", "Medium", "Low"],
-                  },
-                  estimatedSavings: { type: SchemaType.NUMBER },
-                  actionDescription: { type: SchemaType.STRING },
-                  category: {
-                    type: SchemaType.STRING,
-                    enum: ["FinOps", "DevOps", "Security"],
-                  },
-                },
-                required: [
-                  "id",
-                  "title",
-                  "impactLevel",
-                  "estimatedSavings",
-                  "actionDescription",
-                  "category",
-                ],
-              },
+    try {
+      const model = genAI.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: SchemaType.OBJECT,
+            properties: {
+              alerts: { type: SchemaType.ARRAY, items: { type: SchemaType.OBJECT, properties: {
+                id: { type: SchemaType.STRING }, title: { type: SchemaType.STRING },
+                impactLevel: { type: SchemaType.STRING, enum: ['High', 'Medium', 'Low'] },
+                estimatedSavings: { type: SchemaType.NUMBER }, actionDescription: { type: SchemaType.STRING },
+                category: { type: SchemaType.STRING, enum: ['FinOps', 'DevOps', 'Security'] },
+              }, required: ['id', 'title', 'impactLevel', 'estimatedSavings', 'actionDescription', 'category'] } },
+              mermaidGraph: { type: SchemaType.STRING },
             },
-            mermaidGraph: { type: SchemaType.STRING },
+            required: ['alerts', 'mermaidGraph'],
           },
-          required: ["alerts", "mermaidGraph"],
+          temperature: 0.2,
         },
-        temperature: 0.3,
-      },
-      systemInstruction: [
-        {
-          text:
-            "You are an expert technical AI architect reviewing a startup's technology stack. " +
-            "Identify specific optimization opportunities, deprecated tools, architecture risks, and concrete cost-saving measures. " +
-            "Categorize every alert into exactly one of three buckets: FinOps (cost), DevOps (velocity), or Security (risk). " +
-            "Also generate a valid Mermaid flowchart string using graph TD syntax that maps the conceptual connections between the provided stack tools. " +
-            "You MUST output valid, multiline Mermaid.js syntax. Separate every single link or node definition with a newline \n. Do NOT put multiple statements on one line. You MUST wrap all node text labels in double quotes to prevent parsing errors (Example: A[\"Vercel Frontend\"] --> B[\"Backend API/Service\"]). " +
-            "Be practical and specific. Base analysis on the provided stack and monthly spend. " +
-            "Return only valid JSON matching the required schema.",
-        },
-      ],
-    });
-
-    const prompt = {
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "Analyze this startup stack and spending profile. Return 4-8 alerts ordered by estimatedSavings descending.\\n" +
-                `Stack: ${JSON.stringify(stack)}\n` +
-                `Monthly spend: ${monthlySpend}\n` +
-                "For mermaidGraph, use only multiline Mermaid.js syntax with one statement per line and wrap every node label in double quotes.",
-            },
-          ],
-        },
-      ],
-    };
-
-    const result = await model.generateContent(prompt);
-    const raw = result.response.text();
-    const parsed = parseJsonSafely(raw);
-
-    const alerts = Array.isArray(parsed?.alerts) ? parsed.alerts : [];
-    res.json({ alerts, mermaidGraph: typeof parsed?.mermaidGraph === 'string' ? parsed.mermaidGraph : '' });
-  } catch (error) {
-    console.error("/api/scan failed, switching to offline demo mode:", error?.message || error);
-    const mockResponse = buildMockScanResponse(req.body?.stack || [], Number(req.body?.monthlySpend) || 0);
-    res.json(mockResponse);
-  }
-});
-
-app.post("/api/insights", async (req, res) => {
-  try {
-    const client = getGeminiOrRespond(res);
-    if (!client) {
-      const mockMarkdown = buildMockInsightsMarkdown(req.body?.alerts || [], req.body?.monthlyCost || 0, req.body?.implementedSavings || 0);
-      return res.json({ markdown: mockMarkdown });
+        systemInstruction: [{ text: 'Analyze only the supplied stack. Return structured findings without claiming a source was verified or scanned unless source evidence is supplied. Return valid JSON matching the schema.' }],
+      });
+      const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: `Stack: ${JSON.stringify(stack)}\nMonthly spend: ${monthlySpend}` }] }] });
+      const parsed = parseJsonSafely(result.response.text());
+      return sendSuccess(res, { alerts: Array.isArray(parsed.alerts) ? parsed.alerts : [], mermaidGraph: typeof parsed.mermaidGraph === 'string' ? parsed.mermaidGraph : '' }, 'live');
+    } catch (error) {
+      console.error('[scan] provider failure:', error?.message || error);
+      return sendError(res, 503, 'SCAN_PROVIDER_FAILURE', 'The live scan could not be completed. Try again shortly.', true);
     }
+  });
 
-    const { alerts, monthlyCost, implementedSavings } = req.body || {};
-
-    if (!Array.isArray(alerts)) {
-      return res.status(400).json({ error: "Invalid request body. 'alerts' must be an array." });
-    }
-
-    const model = client.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        temperature: 0.4,
-      },
-      systemInstruction: [
-        {
-          text:
-            "You are a fractional CTO writing a weekly update to Paul, the business co-founder handling YC applications and investor updates. " +
-            "Synthesize the technical alerts and burn-rate numbers into a 3-paragraph executive summary focused strictly on: 1) runway impact, 2) unresolved security or tech debt risks that could hurt due diligence, and 3) engineering velocity. " +
-            "Write in polished markdown, keep it accessible for a non-technical founder, and avoid jargon unless it directly supports the business takeaway.",
-        },
-      ],
+  const simpleEndpoint = (path, validate, demoBuilder, instruction, promptBuilder) => {
+    app.post(path, async (req, res) => {
+      const validationError = validate(req.body || {});
+      if (validationError) return sendError(res, 400, 'INVALID_REQUEST', validationError, false, mode);
+      if (mode === 'demo') return sendSuccess(res, demoBuilder(req.body), 'demo');
+      if (mode === 'degraded' || !genAI) return sendError(res, 503, 'PROVIDER_UNAVAILABLE', 'This live analysis is temporarily unavailable. Existing data is unchanged.', true);
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { temperature: 0.3 }, systemInstruction: [{ text: instruction }] });
+        const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: promptBuilder(req.body) }] }] });
+        return sendSuccess(res, { markdown: result.response.text() }, 'live');
+      } catch (error) {
+        console.error(`[${path}] provider failure:`, error?.message || error);
+        return sendError(res, 503, 'PROVIDER_FAILURE', 'The live analysis could not be completed. Try again shortly.', true);
+      }
     });
+  };
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "Current alerts:\n" +
-                JSON.stringify(alerts, null, 2) +
-                "\n\nMonthly cost: " +
-                monthlyCost +
-                "\nImplemented savings: " +
-                implementedSavings,
-            },
-          ],
-        },
-      ],
-    });
+  simpleEndpoint('/api/insights', body => Array.isArray(body.alerts) && Number.isFinite(body.monthlyCost) && Number.isFinite(body.implementedSavings) ? null : "'alerts' must be an array and cost values must be numbers.", body => demoInsights(body.alerts, body.monthlyCost, body.implementedSavings), 'Write a concise founder update grounded only in the supplied data. Mark uncertainty clearly.', body => JSON.stringify(body));
+  simpleEndpoint('/api/digest', body => Array.isArray(body.alerts) ? null : "'alerts' must be an array.", body => demoDigest(body.alerts), 'Write a concise weekly digest grounded only in the supplied findings.', body => JSON.stringify(body.alerts));
+  simpleEndpoint('/api/diligence', body => Array.isArray(body.alerts) && Array.isArray(body.stack) ? null : "'alerts' and 'stack' must be arrays.", body => demoDiligence(body.alerts, body.stack), 'Write a concise technical brief grounded only in the supplied data.', body => JSON.stringify(body));
 
-    res.json({ markdown: result.response.text() });
-  } catch (error) {
-    console.error("/api/insights failed, switching to offline demo mode:", error?.message || error);
-    const mockMarkdown = buildMockInsightsMarkdown(req.body?.alerts || [], req.body?.monthlyCost || 0, req.body?.implementedSavings || 0);
-    res.json({ markdown: mockMarkdown });
-  }
-});
-
-app.post("/api/digest", async (req, res) => {
-  try {
-    const client = getGeminiOrRespond(res);
-    if (!client) {
-      return res.json({ markdown: buildMockDigestMarkdown(req.body?.alerts || []) });
-    }
-
-    const { alerts } = req.body || {};
-
-    if (!Array.isArray(alerts)) {
-      return res.status(400).json({ error: "Invalid request body. 'alerts' must be an array." });
-    }
-
-    const model = client.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        temperature: 0.4,
-      },
-      systemInstruction: [
-        {
-          text:
-            "You are a fractional CTO writing an update to Paul, the non-technical business co-founder. " +
-            "Synthesize the technical alerts into a short 3-paragraph executive summary focused strictly on business impact: runway saved, critical risks mitigated, and engineering velocity. " +
-            "Return the output as polished markdown.",
-        },
-      ],
-    });
-
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: "Weekly digest alerts:\n" + JSON.stringify(alerts, null, 2),
-            },
-          ],
-        },
-      ],
-    });
-
-    res.json({ markdown: result.response.text() });
-  } catch (error) {
-    console.error("/api/digest failed, switching to offline demo mode:", error?.message || error);
-    return res.json({ markdown: buildMockDigestMarkdown(req.body?.alerts || []) });
-  }
-});
-
-app.post("/api/diligence", async (req, res) => {
-  try {
-    const client = getGeminiOrRespond(res);
-    const { alerts, stack } = req.body || {};
-
-    if (!client) {
-      return res.json({ markdown: buildMockDiligenceMarkdown(alerts || [], stack || []) });
-    }
-
-    if (!Array.isArray(alerts) || !Array.isArray(stack)) {
-      return res.status(400).json({ error: "Invalid request body. 'alerts' and 'stack' must both be arrays." });
-    }
-
-    const model = client.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        temperature: 0.35,
-      },
-      systemInstruction: [
-        {
-          text:
-            "You are a fractional CTO filling out the technical section of a Y Combinator application or an investor due diligence questionnaire. " +
-            "Take the current alerts and stack array and generate a highly confident 3-section markdown document with exactly these sections: 1. Current Architecture Choices, 2. Cost Management & FinOps, and 3. Scalability & Technical Debt Mitigation. " +
-            "Write in crisp, investor-ready markdown and emphasize practical decisions, cost discipline, and risk reduction.",
-        },
-      ],
-    });
-
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "Current alerts:\n" +
-                JSON.stringify(alerts, null, 2) +
-                "\n\nCurrent stack:\n" +
-                JSON.stringify(stack, null, 2),
-            },
-          ],
-        },
-      ],
-    });
-
-    res.json({ markdown: result.response.text() });
-  } catch (error) {
-    console.error("/api/diligence failed, switching to offline demo mode:", error?.message || error);
-    return res.json({ markdown: buildMockDiligenceMarkdown(req.body?.alerts || [], req.body?.stack || []) });
-  }
-});
-
-app.post("/api/sync", async (req, res) => {
-  try {
-    const client = getGeminiOrRespond(res);
+  app.post('/api/sync', async (req, res) => {
     const { businessState, alerts } = req.body || {};
-
-    if (!Array.isArray(businessState) || !Array.isArray(alerts)) {
-      return res.status(400).json({
-        error: "Invalid request body. 'businessState' and 'alerts' must both be arrays.",
-      });
+    if (!Array.isArray(businessState) || !Array.isArray(alerts)) return sendError(res, 400, 'INVALID_REQUEST', "'businessState' and 'alerts' must be arrays.", false, mode);
+    if (mode === 'demo') return sendSuccess(res, demoSync(), 'demo');
+    if (mode === 'degraded' || !genAI) return sendError(res, 503, 'PROVIDER_UNAVAILABLE', 'Founder sync is temporarily unavailable.', true);
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: 'application/json', temperature: 0.2 } });
+      const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: `Return JSON with paulActions and coordinationAlerts. Data: ${JSON.stringify({ businessState, alerts })}` }] }] });
+      const parsed = parseJsonSafely(result.response.text());
+      return sendSuccess(res, { paulActions: Array.isArray(parsed.paulActions) ? parsed.paulActions : [], coordinationAlerts: Array.isArray(parsed.coordinationAlerts) ? parsed.coordinationAlerts : [] }, 'live');
+    } catch (error) {
+      console.error('[sync] provider failure:', error?.message || error);
+      return sendError(res, 503, 'PROVIDER_FAILURE', 'Founder sync could not be completed.', true);
     }
+  });
 
-    if (!client) {
-      return res.json(buildMockFounderSyncResponse());
-    }
+  app.post('/api/ask', async (req, res) => {
+    const { alertContext, question } = req.body || {};
+    if (!alertContext || typeof alertContext !== 'object' || Array.isArray(alertContext) || typeof question !== 'string' || !question.trim()) return sendError(res, 400, 'INVALID_REQUEST', "'alertContext' must be an object and 'question' must be a non-empty string.", false, mode);
+    if (mode === 'degraded' || (mode === 'live' && !genAI)) return sendError(res, 503, 'PROVIDER_UNAVAILABLE', 'Live guidance is temporarily unavailable.', true);
 
-    const model = client.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: SchemaType.OBJECT,
-          properties: {
-            paulActions: {
-              type: SchemaType.ARRAY,
-              items: { type: SchemaType.STRING },
-            },
-            coordinationAlerts: {
-              type: SchemaType.ARRAY,
-              items: { type: SchemaType.STRING },
-            },
-          },
-          required: ["paulActions", "coordinationAlerts"],
-        },
-        temperature: 0.3,
-      },
-      systemInstruction: [
-        {
-          text:
-            "You are an AI Chief of Staff for a startup with two founders: Paul (business) and Sam (technical). " +
-            "Cross-reference Paul's business-state tasks with Sam's technical alerts and return practical coordination guidance. " +
-            "Output exactly two arrays: paulActions and coordinationAlerts. " +
-            "paulActions must triage Paul's tasks in priority order and begin each item with 'PRIORITY:'. " +
-            "coordinationAlerts must identify promise-versus-delivery conflicts and begin each item with 'ALIGNMENT WARNING:'. " +
-            "Keep each item concise, concrete, and execution-oriented.",
-        },
-      ],
-    });
-
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "Paul business state:\n" +
-                JSON.stringify(businessState, null, 2) +
-                "\n\nSam technical alerts:\n" +
-                JSON.stringify(alerts, null, 2),
-            },
-          ],
-        },
-      ],
-    });
-
-    const parsed = parseJsonSafely(result.response.text());
-    return res.json({
-      paulActions: Array.isArray(parsed?.paulActions) ? parsed.paulActions : [],
-      coordinationAlerts: Array.isArray(parsed?.coordinationAlerts) ? parsed.coordinationAlerts : [],
-    });
-  } catch (error) {
-    console.error("/api/sync failed, switching to offline demo mode:", error?.message || error);
-    return res.json(buildMockFounderSyncResponse());
-  }
-});
-
-app.post("/api/ask", async (req, res) => {
-  const { alertContext, question } = req.body || {};
-  if (!alertContext || typeof alertContext !== "object") {
-    return res.status(400).json({ error: "'alertContext' must be an object." });
-  }
-  if (typeof question !== "string" || !question.trim()) {
-    return res.status(400).json({ error: "'question' must be a non-empty string." });
-  }
-  
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders?.();
-
-  try {
-    const client = getGeminiOrRespond(res);
-    if (!client) {
-      res.write(`data: ${JSON.stringify({ text: "(Offline Mode) Here is the mock migration script for your tool..." })}\n\n`);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    if (mode === 'demo') {
+      res.write(`data: ${JSON.stringify({ text: 'Demo guidance: review the cited evidence and assumptions before assigning this action.', meta: meta('demo') })}\n\n`);
+      res.write('event: done\ndata: [DONE]\n\n');
       return res.end();
     }
-
-    const model = client.getGenerativeModel({
-      model: "gemini-2.5-pro-preview-03-25",
-      generationConfig: {
-        temperature: 0.4,
-      },
-      systemInstruction: [
-        {
-          text:
-            "You are a senior technical AI architect. Provide deep, practical reasoning for startup engineering decisions. " +
-            "Use the provided alert context to ground your answer and suggest concrete steps, tradeoffs, and risks.",
-        },
-      ],
-    });
-
-    let closed = false;
-    req.on("close", () => {
-      closed = true;
-    });
-
-    const streamResult = await model.generateContentStream({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "Alert context:\n" +
-                JSON.stringify(alertContext, null, 2) +
-                "\n\nUser question:\n" +
-                question,
-            },
-          ],
-        },
-      ],
-    });
-
-    for await (const chunk of streamResult.stream) {
-      if (closed) {
-        break;
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { temperature: 0.3 } });
+      const result = await model.generateContentStream({ contents: [{ role: 'user', parts: [{ text: `Context: ${JSON.stringify(alertContext)}\nQuestion: ${question}` }] }] });
+      for await (const chunk of result.stream) {
+        const text = chunk.text();
+        if (text) res.write(`data: ${JSON.stringify({ text, meta: meta('live') })}\n\n`);
       }
-
-      const chunkValue = chunk.text();
-      if (chunkValue) {
-        res.write(`data: ${JSON.stringify({ text: chunkValue })}\n\n`);
-      }
+      res.write('event: done\ndata: [DONE]\n\n');
+      return res.end();
+    } catch (error) {
+      console.error('[ask] provider failure:', error?.message || error);
+      res.write(`event: error\ndata: ${JSON.stringify({ error: 'Live guidance failed. Try again shortly.' })}\n\n`);
+      return res.end();
     }
+  });
 
-    if (!closed) {
-      res.end();
+  app.use((error, _req, res, _next) => {
+    if (error instanceof SyntaxError && 'body' in error) {
+      return sendError(res, 400, 'INVALID_JSON', 'The request body must contain valid JSON.', false, mode);
     }
-  } catch (error) {
-    console.error("/api/ask failed, switching to offline demo mode:", error?.message || error);
-    res.write(`data: ${JSON.stringify({ text: "(Offline Mode) Here is the mock migration script for your tool..." })}\n\n`);
-    return res.end();
-  }
-});
+    console.error('[http] unexpected failure:', error?.message || error);
+    return sendError(res, 500, 'INTERNAL_ERROR', 'StackSense could not complete the request.', true, 'degraded');
+  });
 
-app.listen(PORT, () => {
-  console.log(`StackSense backend listening on http://localhost:${PORT}`);
-});
+  return app;
+}
+
+if (require.main === module) {
+  const port = Number(process.env.PORT) || 8787;
+  const mode = parseOperatingMode(process.env.STACKSENSE_MODE, 'demo');
+  if (mode === 'live' && !process.env.GEMINI_API_KEY) console.warn('[WARN] Live mode is configured without GEMINI_API_KEY; requests will return a degraded response.');
+  createApp().listen(port, () => console.log(`StackSense backend listening on http://localhost:${port} (${mode} mode)`));
+}
+
+module.exports = { createApp, parseOperatingMode, validateScan };

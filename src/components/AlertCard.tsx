@@ -16,6 +16,7 @@ interface AlertCardProps {
   alert: Alert & { status: 'active' | 'resolved' | 'dismissed' };
   index: number;
   stack: StackItem[];
+  isDemo: boolean;
   onImplement: () => void;
   onDismiss: () => void;
   onAskGemini: (
@@ -27,7 +28,7 @@ interface AlertCardProps {
   ) => Promise<void>;
 }
 
-export default function AlertCard({ alert, index, stack, onImplement, onDismiss, onAskGemini }: AlertCardProps) {
+export default function AlertCard({ alert, index, stack, isDemo, onImplement, onDismiss, onAskGemini }: AlertCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [question, setQuestion] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', content: string}[]>([]);
@@ -116,12 +117,13 @@ export default function AlertCard({ alert, index, stack, onImplement, onDismiss,
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {isDemo && <span className="text-[10px] uppercase tracking-widest font-bold text-brand-amber border border-brand-amber/40 bg-brand-amber/10 px-2 py-0.5 rounded">Demo data</span>}
             {alert.status === 'resolved' && (
               <span className="text-[10px] uppercase tracking-widest font-mono font-bold text-emerald-300 border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 rounded">
                 Resolved
               </span>
             )}
-            <span className="text-emerald-400 font-mono text-sm font-bold flex items-center gap-1">
+            <span className="text-brand-amber text-sm font-bold flex items-center gap-1" aria-label={`Projected savings ${alert.potentialSavings} dollars`}>
               <DollarSign className="w-3 h-3" /> {alert.potentialSavings}
             </span>
           </div>
@@ -143,7 +145,7 @@ export default function AlertCard({ alert, index, stack, onImplement, onDismiss,
               disabled={alert.status === 'resolved'}
               className="flex-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 py-2 text-xs font-mono uppercase tracking-wider text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
             >
-              Implement
+              Mark implemented
             </button>
             <button
               onClick={onDismiss}

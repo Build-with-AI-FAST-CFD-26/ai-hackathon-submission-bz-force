@@ -100,7 +100,7 @@ export default function InsightsTab({
             </div>
             <div>
               <h2 className="text-xl font-bold">Executive Summary</h2>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Weekly update written for Paul</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Weekly update for the founder workspace</p>
             </div>
           </div>
           <p className="text-sm text-gray-400 max-w-2xl">
@@ -141,7 +141,7 @@ export default function InsightsTab({
             </div>
             <div>
               <h3 className="text-lg font-bold">Founder Sync</h3>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Bridge Paul's execution with Sam's technical constraints</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wider font-mono">Connect business commitments with technical constraints</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -179,7 +179,7 @@ export default function InsightsTab({
 
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-brand-border bg-brand-bg p-4">
-            <div className="text-[10px] uppercase tracking-widest font-mono text-gray-500 mb-3">Paul's Action Items</div>
+            <div className="text-[10px] uppercase tracking-widest font-mono text-gray-500 mb-3">Founder action items</div>
             {founderSync.paulActions.length > 0 ? (
               <ul className="space-y-2 text-sm text-gray-200 list-disc list-inside">
                 {founderSync.paulActions.map((action) => (
@@ -187,7 +187,7 @@ export default function InsightsTab({
                 ))}
               </ul>
             ) : (
-              <div className="text-xs text-gray-500 font-mono">Run Founder Sync to generate Paul's prioritized next actions.</div>
+              <div className="text-xs text-gray-500 font-mono">Run Founder Sync to generate prioritized next actions.</div>
             )}
           </div>
 
@@ -225,7 +225,7 @@ export default function InsightsTab({
               <FileText className="w-6 h-6 text-brand-cyan" />
             </div>
             <p className="max-w-md text-sm leading-relaxed">
-              Generate a concise executive summary for Paul. It will synthesize the current alerts into a weekly business update.
+              Generate a concise executive summary for the founder team from the current findings.
             </p>
           </div>
         )}

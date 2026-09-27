@@ -10,7 +10,18 @@ export type ScanAlert = {
 export type ScanResponse = {
   alerts: ScanAlert[];
   mermaidGraph: string;
+  meta: ApiMeta;
 };
+
+export type ApiMeta = { mode: OperatingMode; generatedAt: string };
+type ApiSuccess<T> = { data: T; meta: ApiMeta };
+
+export class ApiRequestError extends Error {
+  constructor(public status: number, public code: string, message: string, public retryable: boolean) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
 
 export type BusinessStateItem = {
   type: 'Lead' | 'Deadline' | 'Task' | 'Promise';
@@ -28,24 +39,31 @@ type AskGeminiError = (error: unknown) => void;
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787";
 
-export async function scanStack(stack: string[], monthlySpend: number): Promise<ScanResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/scan`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ stack, monthlySpend }),
+async function requestJson<T>(path: string, body: unknown): Promise<ApiSuccess<T>> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
-
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Scan request failed (${response.status}): ${errorBody}`);
+    throw new ApiRequestError(
+      response.status,
+      payload?.error?.code || 'REQUEST_FAILED',
+      payload?.error?.message || 'StackSense could not complete that request.',
+      Boolean(payload?.error?.retryable),
+    );
   }
+  return payload as ApiSuccess<T>;
+}
 
-  const data = await response.json();
+export async function scanStack(stack: string[], monthlySpend: number): Promise<ScanResponse> {
+  const response = await requestJson<Omit<ScanResponse, 'meta'>>('/api/scan', { stack, monthlySpend });
+  const data = response.data;
   return {
     alerts: Array.isArray(data?.alerts) ? data.alerts : [],
     mermaidGraph: typeof data?.mermaidGraph === 'string' ? data.mermaidGraph : '',
+    meta: response.meta,
   };
 }
 
@@ -54,56 +72,20 @@ export async function generateInsights(
   monthlyCost: number,
   implementedSavings: number
 ): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/api/insights`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ alerts, monthlyCost, implementedSavings }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Insights request failed (${response.status}): ${errorBody}`);
-  }
-
-  const data = await response.json();
+  const response = await requestJson<{ markdown: string }>('/api/insights', { alerts, monthlyCost, implementedSavings });
+  const data = response.data;
   return typeof data?.markdown === 'string' ? data.markdown : '';
 }
 
 export async function generateDigest(alerts: unknown[]): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/api/digest`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ alerts }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Digest request failed (${response.status}): ${errorBody}`);
-  }
-
-  const data = await response.json();
+  const response = await requestJson<{ markdown: string }>('/api/digest', { alerts });
+  const data = response.data;
   return typeof data?.markdown === 'string' ? data.markdown : '';
 }
 
 export async function generateDiligence(alerts: unknown[], stack: unknown[]): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/api/diligence`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ alerts, stack }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Diligence request failed (${response.status}): ${errorBody}`);
-  }
-
-  const data = await response.json();
+  const response = await requestJson<{ markdown: string }>('/api/diligence', { alerts, stack });
+  const data = response.data;
   return typeof data?.markdown === 'string' ? data.markdown : '';
 }
 
@@ -111,20 +93,8 @@ export async function syncFounders(
   businessState: BusinessStateItem[],
   alerts: unknown[]
 ): Promise<FounderSyncResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/sync`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ businessState, alerts }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`Founder sync request failed (${response.status}): ${errorBody}`);
-  }
-
-  const data = await response.json();
+  const response = await requestJson<FounderSyncResponse>('/api/sync', { businessState, alerts });
+  const data = response.data;
   return {
     paulActions: Array.isArray(data?.paulActions) ? data.paulActions : [],
     coordinationAlerts: Array.isArray(data?.coordinationAlerts) ? data.coordinationAlerts : [],
@@ -221,3 +191,4 @@ function safeJsonParse<T>(value: string): T | null {
     return null;
   }
 }
+import type { OperatingMode } from '../config/operatingMode';
